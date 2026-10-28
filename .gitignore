@@ -1,0 +1,3 @@
+# local backup copies made while editing
+.index.before-*.html
+.DS_Store
