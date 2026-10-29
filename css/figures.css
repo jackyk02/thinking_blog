@@ -149,12 +149,23 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-pl-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--slot-gap)}
 .fx-pl-slot{position:relative;min-width:0}
 .fx-pl-sq{position:relative;aspect-ratio:1;border-radius:4px;background:var(--code-bg);overflow:hidden;box-shadow:0 0 0 1px var(--fx-ring)}
-.fx-pl-sq .fx-paint{position:absolute;inset:0;box-shadow:none;opacity:0;filter:blur(8px);transform:scale(.97);transition:opacity .7s var(--fx-ease),filter .9s var(--fx-ease),transform .9s var(--fx-ease)}
-.fx-pl.st2 .fx-pl-sq .fx-paint,.fx-pl.st3 .fx-pl-sq .fx-paint,.fx-pl.st4 .fx-pl-sq .fx-paint,.fx-pl.st5 .fx-pl-sq .fx-paint{opacity:1;filter:none;transform:none}
-.fx-pl-code{position:absolute;inset:14% 12%;display:flex;flex-direction:column;justify-content:center;gap:9%;opacity:0;transition:opacity .5s}
-.fx-pl-code i{display:block;height:4px;border-radius:2px;background:var(--fg5);opacity:.75;transform-origin:0 50%;transform:scaleX(0);transition:transform .45s var(--fx-ease);transition-delay:var(--d)}
-.fx-pl.st1 .fx-pl-code{opacity:1}
-.fx-pl.st1 .fx-pl-code i{transform:scaleX(1)}
+/* the painting: a canvas paints it in during Render (.paper), then the image itself stays (.done) */
+.fx-pl-sq .fx-paint,.fx-pl-sq canvas{position:absolute;inset:0;width:100%;height:100%;box-shadow:none;border-radius:0;opacity:0;display:block}
+.fx-pl-sq canvas{transition:opacity .45s var(--fx-ease)}
+.fx-pl-sq.paper canvas{opacity:1}
+.fx-pl-sq.done .fx-paint{opacity:1}
+.fx-pl-sq.done canvas{opacity:0;transition:none}
+/* the sketch: schematic code lines that stream in during Code */
+.fx-pl-code{position:absolute;inset:16% 13%;z-index:1;display:flex;flex-direction:column;justify-content:center;gap:6.5%;opacity:0;transition:opacity .5s}
+.fx-pl-code i{display:block;flex:none;height:max(2px,3.2%);border-radius:2px;background:var(--fg5);opacity:.8;transform-origin:0 50%;transform:scaleX(0);
+  transition:transform .45s var(--fx-ease),background-color .35s,opacity .55s var(--fx-ease);transition-delay:var(--d),0s,0s}
+.fx-pl.st1 .fx-pl-code,.fx-pl.st2 .fx-pl-code{opacity:1}
+.fx-pl.st1 .fx-pl-code i,.fx-pl.st2 .fx-pl-code i{transform:scaleX(1)}
+/* Render: on the paper the lines turn to pencil; each darkens while its washes go down, then dissolves into them */
+.fx-pl-sq.paper .fx-pl-code i{background:rgba(70,58,46,.3);transition-delay:0s}
+.fx-pl-sq.paper .fx-pl-code i.on{background:rgba(52,40,30,.78)}
+.fx-pl-sq.paper .fx-pl-code i.gone{opacity:0}
+.fx-pl-sq.done .fx-pl-code{opacity:0;transition:none}
 .fx-pl-dist{display:flex;align-items:flex-end;justify-content:center;gap:1.5px;height:20px;margin:10px 8% 0}
 .fx-pl-dist i{flex:1;max-width:6px;border-radius:1px 1px 0 0;background:color-mix(in srgb,var(--fx-ver) 70%,transparent);height:calc(var(--h) * 20px);transform-origin:50% 100%;transform:scaleY(0);transition:transform .5s var(--fx-ease);transition-delay:var(--d)}
 .fx-pl.st3 .fx-pl-dist i,.fx-pl.st4 .fx-pl-dist i,.fx-pl.st5 .fx-pl-dist i{transform:none}

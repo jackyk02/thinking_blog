@@ -301,7 +301,7 @@ FX.painter = (function () {
       A = a; job.total = a.total / speed; job.layers = a.layers.map(l => ({ t0: l.t0 / speed, t1: l.t1 / speed, kind: l.kind }));
       if (!from) fillPaper(a.paper);
       settled = new Uint8ClampedArray(ctx.getImageData(0, 0, S, S).data); work = new ImageData(S, S); work.data.set(settled);
-      if (o.delay) T = -o.delay;
+      if (o.delay) T = -o.delay * speed; // delay is in real seconds
       jobs.add(job); if (io) { canvas.__pvVis = undefined; io.observe(canvas) } kick();
       return a;
     }, () => { end(false) });
@@ -319,10 +319,10 @@ FX.painter = (function () {
         for (const l of live) { const p = Math.min(1, (T - l.t0) / (l.t1 - l.t0)); apply(l, l.kind === 'detail' ? smooth(p) : easeOut(p), d, srcOf(l), S) }
         ctx.putImageData(work, 0, 0, rx0, ry0, rx1 - rx0, ry1 - ry0);
       }
-      if (o.onFrame) o.onFrame(T * speed, job);
+      if (o.onFrame) o.onFrame(T / speed, job); // real seconds, like job.layers and job.total
       if (li >= L.length) end(true);
     };
-    job.time = () => T;
+    job.time = () => T / speed;
     job.pause = () => { job.paused = true };
     job.resume = () => { job.paused = false; kick() };
     // cancel(true) jumps to the finished painting; cancel(false) leaves the canvas as it is
