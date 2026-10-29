@@ -17,7 +17,8 @@
      from: 'paper' (default: the cover's paper, then the painting's own), 'blank' (empty; the paper fades in like the
      cover's background call), or an <img>/<canvas> to paint over (the canvas itself keeps what it shows).
      wash: true with an <img>/<canvas>: a new painting, not a revision; paper is washed over the old one first.
-     job: { ready, done (true when finished, false if cancelled), total, layers, groups, time(), pause(), resume(), cancel(toEnd) }
+     job: { ready, done (true when finished, false if cancelled), total, layers, groups, time(), pause(), resume(), hurry(s), cancel(toEnd) }
+     hurry(s): play the rest (or all of it, if it has not started) within about s seconds, then finish as usual.
    One shared rAF loop drives every job; a job whose canvas is off screen does not advance. */
 window.Painter = (function () {
   'use strict';
@@ -400,9 +401,10 @@ window.Painter = (function () {
     return p;
   }
   const resFor = (el, max) => Math.round(Math.min(max || 420, Math.max(96, (el.getBoundingClientRect().width || 160) * Math.min(2, window.devicePixelRatio || 1))));
-  const prefetch = (src, el, max) => {
+  // urgent: ahead of the other paintings waiting for their marks (e.g. one a click is about to finish)
+  const prefetch = (src, el, max, urgent) => {
     const known = typeof src === 'string' && window.FIG && FIG.sketches && FIG.sketches[src];
-    return typeof src === 'object' || known ? sketchPlan(known || src.sketch) : imagePlan(src, typeof el === 'number' ? el : resFor(el, max));
+    return typeof src === 'object' || known ? sketchPlan(known || src.sketch) : imagePlan(src, typeof el === 'number' ? el : resFor(el, max), !!urgent);
   };
 
   /* ---------- jobs, all driven by one rAF loop ---------- */
@@ -435,7 +437,7 @@ window.Painter = (function () {
     };
     if (!isSketch) start(S, S);
 
-    let R = null, T = 0, resolve, finished = false;
+    let R = null, T = 0, resolve, finished = false, boost = 1, rush = 0;
     const job = { canvas, src, paused: false, total: 0, layers: [], groups: [] };
     job.done = new Promise(r => { resolve = r });
     const end = ok => { if (finished) return; finished = true; jobs.delete(job); if (io) io.unobserve(canvas); R = null; resolve(ok) };
@@ -458,13 +460,14 @@ window.Painter = (function () {
       const gs = []; job.layers.forEach(l => { if (l.g == null) return; const g = gs[l.g] || (gs[l.g] = { name: GROUPS[l.g], t0: l.t0, t1: l.t1 }); g.t0 = Math.min(g.t0, l.t0); g.t1 = Math.max(g.t1, l.t1) });
       job.groups = gs.filter(Boolean);
       if (o.delay) T = -o.delay * speed; // delay is in real seconds
+      if (rush) job.hurry(rush);
       jobs.add(job); if (io) { canvas.__pvVis = undefined; io.observe(canvas) } kick();
       return P;
     });
     job.ready.catch(() => end(false));
     job._tick = dt => {
       if (job.paused || !R || finished) return;
-      T += dt * speed; if (T < 0) return;
+      T += dt * speed * boost; if (T < 0) return;
       R.render(T);
       if (o.onFrame) o.onFrame(T / speed, job); // real seconds, like job.layers and job.total
       if (R.done()) end(true);
@@ -472,6 +475,13 @@ window.Painter = (function () {
     job.time = () => T / speed;
     job.pause = () => { job.paused = true };
     job.resume = () => { job.paused = false; kick() };
+    job.hurry = sec => {
+      rush = Math.max(.05, sec);
+      if (!R) return; // applied once the plan is ready
+      if (T < 0) T = 0;
+      boost = Math.max(boost, (job.total - T / speed) / rush);
+      job.paused = false; kick();
+    };
     // cancel(true) jumps to the finished painting; cancel(false) leaves the canvas as it is
     job.cancel = toEnd => {
       if (finished) return;

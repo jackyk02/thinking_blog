@@ -254,50 +254,41 @@ figure.fx>figcaption{margin-top:1rem}
   .fx-gr .lane-l{grid-column:1;text-align:left;margin-top:8px}
 }
 
-/* ---------- 6 · more paintings: the prompts beside one painting, a step scrubber, autoplay ---------- */
-.fx-ga{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr);gap:20px 30px;align-items:center}
-.fx-ga-list{display:flex;flex-direction:column;gap:2px}
-.fx-ga-list button{all:unset;box-sizing:border-box;position:relative;display:grid;grid-template-columns:38px minmax(0,1fr);column-gap:12px;align-items:center;padding:6px 6px 8px;border-radius:6px;cursor:pointer;opacity:.48;transition:opacity .35s var(--fx-ease);-webkit-tap-highlight-color:transparent}
-.fx-ga-list button .fx-paint{width:38px;height:38px}
-.fx-ga-list .t{font-family:var(--font-serif);font-style:italic;font-size:14.5px;line-height:1.28;color:var(--fg2);text-wrap:balance;transition:color .35s}
-.fx-ga-list button:hover{opacity:.82}
-.fx-ga-list button[aria-pressed="true"]{opacity:1}
-.fx-ga-list button[aria-pressed="true"] .t{color:var(--fg)}
-.fx-ga-list button:focus-visible{outline:2px solid var(--fg3);outline-offset:1px}
-/* how far the current prompt has got (autoplay) */
-.fx-ga-prog{position:absolute;left:56px;right:6px;bottom:3px;height:1px;overflow:hidden;opacity:0;transition:opacity .4s}
-.fx-ga-prog i{display:block;height:100%;background:var(--fg4);transform-origin:0 50%;transform:scaleX(0)}
-.fx-ga-list button[aria-pressed="true"] .fx-ga-prog{opacity:1}
-.fx-ga-stage{display:flex;flex-direction:column;align-items:center;min-width:0}
-.fx-ga-view{position:relative;width:min(100%,420px);aspect-ratio:1;border-radius:4px;overflow:hidden;background:var(--panel);box-shadow:0 0 0 1px var(--fx-ring)}
-.fx-ga-view>.fx-paint,.fx-ga-view>canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:0;box-shadow:none;display:block}
-.fx-ga-view canvas{opacity:0}
-.fx-ga-view.painting canvas{opacity:1}
-.fx-ga-view.blank{background:#f4f1e8}
-.fx-ga-view.blank>.fx-paint{opacity:0}
-.fx-ga-ctl{display:flex;align-items:center;gap:10px;width:min(100%,420px);margin-top:12px}
-.fx-ga-scrub{box-sizing:border-box;flex:1;min-width:0;padding:10px 12px 0;touch-action:pan-y;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-.fx-ga-scrub .track{position:relative;height:30px}
-.fx-ga-scrub .track::before{content:"";position:absolute;left:0;right:0;top:6px;height:1px;background:var(--rule)}
-.fx-ga-scrub .fill{position:absolute;left:0;top:5.5px;height:2px;border-radius:1px;background:var(--fg4)}
-.fx-ga-scrub .stop{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:9px}
-.fx-ga-scrub .stop i{width:5px;height:5px;margin-top:4px;border-radius:50%;background:var(--fg5)}
-.fx-ga-scrub .stop b{font:400 10.5px/1 var(--fx-mono);letter-spacing:.06em;color:var(--fg5);transition:color .3s}
-.fx-ga-scrub .stop.on b{color:var(--fg)}
-.fx-ga-scrub .knob{position:absolute;top:6.5px;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 3px var(--bg)}
-.fx-ga-scrub.glide .knob{transition:left .6s var(--fx-ease)}.fx-ga-scrub.glide .fill{transition:width .6s var(--fx-ease)}
-.fx .fx-ga-scrub:focus-visible{outline:none}
-.fx-ga-scrub:focus-visible .knob{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--fg3)}
-.fx-ga-btn{margin-top:-6px}
-/* paused: the button says Play, and the current prompt's hairline dims where it stopped */
-.paused .fx-ga-prog i{background:var(--fg5)}
-@media (max-width:600px){
-  .fx-ga{grid-template-columns:minmax(0,1fr)}
-  .fx-ga-list{order:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 6px}
-  .fx-ga-list button{grid-template-columns:30px minmax(0,1fr);column-gap:9px;padding:5px 4px 7px}
-  .fx-ga-list button .fx-paint{width:30px;height:30px}
-  .fx-ga-list .t{font-size:13px}
-  .fx-ga-prog{left:43px;right:4px}
+/* ---------- 6 · more paintings: Jacky's grid; every cell paints itself in, column by column (js/figures/gallery.js) ---------- */
+.fx-gg{--lab:138px;--gap:12px}
+.fx-gg-axis,.fx-gg-row{display:grid;grid-template-columns:var(--lab) minmax(0,1fr);column-gap:var(--gap);align-items:center}
+.fx-gg-axis{margin-bottom:8px}
+.fx-gg-steps{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap);padding-bottom:9px}
+/* the steps: a click finishes that column */
+.fx-gg-steps>*{all:unset;box-sizing:border-box;justify-self:center;font:10.5px/1 var(--fx-mono);letter-spacing:.08em;color:var(--fg4);padding:5px 9px;border-radius:999px;transition:color .3s,background-color .3s}
+.fx-gg-steps>button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fx-gg-steps>button:hover,.fx-gg-steps>button:focus-visible{color:var(--fg);background:var(--code-bg)}
+.fx-gg-steps>button.full{color:var(--fg2)}
+.fx .fx-gg-steps>button:focus-visible{outline:none;box-shadow:0 0 0 1.5px var(--fg3)}
+/* a thin arrow under the steps: training moves left to right */
+.fx-gg-steps::after{content:"";position:absolute;left:12.5%;right:10.5%;bottom:0;height:1px;background:var(--fg5)}
+.fx-gg-steps::before{content:"";position:absolute;right:10.5%;bottom:-3px;border:3.5px solid transparent;border-left:6px solid var(--fg5);border-right:0;transform:translateX(100%)}
+.fx-gg-row{padding:var(--gap) 0}
+.fx-gg-p{font:italic 17px/1.3 var(--font-serif);color:var(--fg);text-wrap:balance}
+.fx-gg-cells{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap)}
+/* a cell: blank paper, then the canvas it paints on, then the image itself */
+.fx-gg-cell{position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;background:#f4f1e8;box-shadow:0 0 0 1px var(--fx-ring);cursor:pointer;transition:box-shadow .3s var(--fx-ease);-webkit-tap-highlight-color:transparent}
+.fx-gg-cell>.fx-paint,.fx-gg-cell>canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:0;box-shadow:none;display:block;background:none}
+.fx-gg-cell>.fx-paint,.fx-gg-cell>canvas{opacity:0}
+.fx-gg-cell>.fx-paint{transition:opacity .4s var(--fx-ease)}
+.fx-gg-cell.painting>canvas{opacity:1}
+.fx-gg-cell.done{cursor:default}
+.fx-gg-cell.done>.fx-paint{opacity:1}
+.fx-gg-cell.done>canvas{display:none}
+.fx-gg-cell:not(.done):hover,
+.fx-gg[data-hk="0"] .fx-gg-cell[data-k="0"]:not(.done),.fx-gg[data-hk="1"] .fx-gg-cell[data-k="1"]:not(.done),
+.fx-gg[data-hk="2"] .fx-gg-cell[data-k="2"]:not(.done),.fx-gg[data-hk="3"] .fx-gg-cell[data-k="3"]:not(.done){box-shadow:0 0 0 1.5px var(--fg5)}
+@media (max-width:620px){
+  .fx-gg{--gap:8px}
+  .fx-gg-axis,.fx-gg-row{grid-template-columns:minmax(0,1fr)}
+  .fx-gg-axis>.fx-k{display:none}
+  .fx-gg-row{padding:9px 0}
+  .fx-gg-p{font-size:15px;margin-bottom:7px}
 }
 
 /* the sample-efficiency table, quieter: no row rules, scorer colours on the two step columns */
