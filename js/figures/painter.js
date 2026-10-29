@@ -9,8 +9,8 @@
      3. A last layer sharpens everything to the real image, so the final frame is exactly the image.
    With the sketches, the cover's capture step could produce real layers for the same playback.
 
-   FX.painter.paint(canvas, src, { from, speed, max, onFrame }) → job { ready, done, total, layers, pause(), resume(), cancel() }
-     from: 'paper' (default) or an <img>/<canvas> to repaint over. done resolves true when finished, false if cancelled.
+   FX.painter.paint(canvas, src, { from, speed, max, delay, onFrame }) → job { ready, done, total, layers, pause(), resume(), cancel() }
+     from: 'paper' (default), an <img>/<canvas> to repaint over, or the canvas itself (keep what it shows). done resolves true when finished, false if cancelled.
    One shared rAF loop drives every job on the page, and a job that is off screen does not advance. */
 window.FX = window.FX || {};
 FX.painter = (function () {
@@ -186,6 +186,11 @@ FX.painter = (function () {
     washes.sort((a, b) => (b.light - a.light) || (b.area - a.area));
 
     const layers = [];
+    // the bare paper is a wash too, pulled down from the top first: over blank paper it barely shows, but when
+    // repainting over another painting it lays the new paper tone down instead of leaving the old picture there
+    const bare = []; let bx0 = G, by0 = G, bx1 = -1, by1 = -1;
+    for (let c = 0; c < n; c++) if (own[c] < 0) { const x = c % G, y = c / G | 0; bare.push(c); if (x < bx0) bx0 = x; if (x > bx1) bx1 = x; if (y < by0) by0 = y; if (y > by1) by1 = y }
+    if (bare.length > n * .01) { const l = washLayer({ cells: bare, x0: bx0, y0: by0, x1: bx1, y1: by1, area: bare.length / n, deep: 0, sky: true }, G, f, S); l.wet = 0; l.kind = 'paper'; layers.push(l); await yieldNow() }
     for (const c of washes) { layers.push(washLayer(c, G, f, S)); await yieldNow() }
     // sharpen to the real image: soft random patches, slightly earlier in the middle
     const ord = new Float32Array(S * S), s1 = 1 / (16 * S / 420), half = S / 2;
@@ -196,9 +201,12 @@ FX.painter = (function () {
     const detail = { x: 0, y: 0, w: S, h: S, alpha: null, order: ord, feather: .5, src: 'I', kind: 'detail' };
 
     // timeline (seconds at speed 1): washes overlap and finish in order, the sharpening pass overlaps the last ones
-    const slot = Math.max(.17, Math.min(.42, 2.1 / Math.max(1, layers.length)));
+    const slot = Math.max(.17, Math.min(.42, 2.1 / Math.max(1, washes.length)));
     let t = 0, end = 0;
-    for (const l of layers) { l.t0 = t; l.t1 = Math.max(t + .5 + 1.1 * Math.sqrt(l.area), end + .02); end = l.t1; t += slot }
+    for (const l of layers) {
+      if (l.kind === 'paper') { l.t0 = 0; l.t1 = .9; continue }
+      l.t0 = t; l.t1 = Math.max(t + .5 + 1.1 * Math.sqrt(l.area), end + .02); end = l.t1; t += slot;
+    }
     detail.t0 = Math.max(.25, end - .55); detail.t1 = Math.max(detail.t0 + 1.25, end + .02);
     layers.push(detail);
     return { S, I, B, paper, layers, total: detail.t1 };
@@ -217,7 +225,7 @@ FX.painter = (function () {
     }
     // where the brush lands: the cell deepest inside the region
     const sx = (c.deep % G + .5) * f, sy = ((c.deep / G | 0) + .5) * f;
-    const sky = c.area > .28 && c.y0 <= 1; // a big region along the top: pulled down like a sky wash
+    const sky = c.sky || (c.area > .28 && c.y0 <= 1); // a big region along the top: pulled down like a sky wash
 
     const x0 = Math.floor(gx0 * f), y0 = Math.floor(gy0 * f), x1 = Math.min(S, Math.ceil((gx1 + 1) * f)), y1 = Math.min(S, Math.ceil((gy1 + 1) * f));
     const w = x1 - x0, h = y1 - y0, alpha = new Uint8Array(w * h), order = new Float32Array(w * h);
@@ -286,11 +294,13 @@ FX.painter = (function () {
   function paint(canvas, src, o) {
     o = o || {};
     const S = o.res || resFor(canvas, o.max), speed = o.speed || 1, ctx = canvas.getContext('2d');
+    if (o.from === canvas && canvas.width !== S) o = Object.assign({}, o, { from: null }); // a resize clears the canvas
     if (canvas.width !== S) canvas.width = S; if (canvas.height !== S) canvas.height = S;
     // first frame: the sheet of paper, or whatever is being painted over
     const from = o.from && o.from !== 'paper' ? o.from : null;
     const fillPaper = p => { ctx.fillStyle = `rgb(${p})`; ctx.fillRect(0, 0, S, S) };
-    if (from) { ctx.clearRect(0, 0, S, S); try { ctx.drawImage(from, 0, 0, S, S) } catch (e) { fillPaper([245, 242, 235]) } } else fillPaper([245, 242, 235]);
+    if (from === canvas) { /* repaint over what the canvas already shows */ }
+    else if (from) { ctx.clearRect(0, 0, S, S); try { ctx.drawImage(from, 0, 0, S, S) } catch (e) { fillPaper([245, 242, 235]) } } else fillPaper([245, 242, 235]);
 
     let A = null, settled = null, work = null, li = 0, T = 0, resolve, finished = false;
     const job = { canvas, src, S, paused: false, total: 0, layers: [] };

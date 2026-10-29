@@ -220,33 +220,41 @@ figure.fx>figcaption{margin-top:1rem}
   .fx-gr .lane-l{grid-column:1;text-align:left;margin-top:8px}
 }
 
-/* ---------- 6 · more paintings: prompt picker ---------- */
-.fx-ga{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:26px;align-items:start}
-.fx-ga-view{position:relative;max-width:420px;width:100%}
-.fx-ga-view .fx-paint+.fx-paint{position:absolute;inset:0}
-.fx-ga-view .fx-paint{transition:opacity .55s var(--fx-ease)}
-.content .fx-ga-prompts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
-.content .fx-ga-prompts li{margin:0}
-.fx-ga-prompts button{all:unset;cursor:pointer;font-family:var(--font-serif);font-style:italic;font-size:16px;line-height:1.35;color:var(--fg5);padding:3px 0;transition:color .3s;display:block}
-.fx-ga-prompts button:hover{color:var(--fg2)}
-.fx-ga-prompts button[aria-pressed="true"]{color:var(--fg)}
-.fx-ga-prompts button:focus-visible{outline:2px solid var(--fg3);outline-offset:2px;border-radius:3px}
-.fx-ga-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:22px}
-.fx-ga-strip button{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:5px;align-items:center}
-.fx-ga-strip .fx-paint{opacity:.45;transition:opacity .4s,box-shadow .4s}
-.fx-ga-strip button[aria-pressed="true"] .fx-paint{opacity:1;box-shadow:0 0 0 1.5px var(--fg)}
-.fx-ga-strip button:hover .fx-paint{opacity:.85}
-.fx-ga-strip span{font-family:var(--fx-mono);font-size:10.5px;letter-spacing:.06em;color:var(--fg5);transition:color .3s}
-.fx-ga-strip button[aria-pressed="true"] span{color:var(--fg)}
-.fx-ga-strip button:focus-visible{outline:2px solid var(--fg3);outline-offset:2px;border-radius:4px}
-@media (max-width:620px){
-  .fx-ga{grid-template-columns:minmax(0,1fr);gap:14px}
-  .fx-ga-side{display:contents}
-  .content .fx-ga-prompts{order:-1;flex-direction:row;overflow-x:auto;gap:16px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent);padding-right:24px}
-  .fx-ga-prompts button{white-space:nowrap;font-size:15px}
-  .fx-ga-view{max-width:none}
-  .fx-ga-strip{margin-top:0}
-}
+/* ---------- 6 · more paintings: one painting, a step scrubber, the prompts ---------- */
+.fx-ga{display:flex;flex-direction:column;align-items:center}
+.fx-ga-prompts{display:flex;justify-content:center;gap:10px;margin:0 0 24px;flex-wrap:wrap}
+.fx-ga-prompts button{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;border-radius:4px;opacity:.4;box-shadow:0 0 0 1px var(--fx-ring);transition:opacity .3s,box-shadow .3s}
+.fx-ga-prompts button .fx-paint{width:100%;height:100%;box-shadow:none}
+.fx-ga-prompts button:hover{opacity:.8}
+.fx-ga-prompts button[aria-pressed="true"]{opacity:1;box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--fg4)}
+.fx-ga-prompts button:focus-visible{outline:2px solid var(--fg3);outline-offset:4px}
+.fx-ga-view{position:relative;width:min(100%,440px);aspect-ratio:1;border-radius:4px;overflow:hidden;background:var(--panel);box-shadow:0 0 0 1px var(--fx-ring)}
+.fx-ga-view>.fx-paint,.fx-ga-view>canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:0;box-shadow:none;display:block}
+.fx-ga-view canvas{opacity:0}
+.fx-ga-view.painting canvas{opacity:1}
+.fx-ga-view.blank{background:#f5f2eb}
+.fx-ga-view.blank>.fx-paint{opacity:0}
+.fx .fx-ga-name{font-family:var(--font-serif);font-style:italic;font-size:16px;line-height:1.3;color:var(--fg2);margin:16px 0 0;text-align:center}
+.fx-ga-scrub{box-sizing:border-box;width:min(100%,440px);padding:16px 14px 2px;touch-action:pan-y;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.fx-ga-scrub .track{position:relative;height:30px}
+.fx-ga-scrub .track::before{content:"";position:absolute;left:0;right:0;top:6px;height:1px;background:var(--rule)}
+.fx-ga-scrub .fill{position:absolute;left:0;top:5.5px;height:2px;border-radius:1px;background:var(--fg4)}
+.fx-ga-scrub .stop{position:absolute;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:9px}
+.fx-ga-scrub .stop i{width:5px;height:5px;margin-top:4px;border-radius:50%;background:var(--fg5)}
+.fx-ga-scrub .stop b{font:400 10.5px/1 var(--fx-mono);letter-spacing:.06em;color:var(--fg5);transition:color .3s}
+.fx-ga-scrub .stop.on b{color:var(--fg)}
+.fx-ga-scrub .knob{position:absolute;top:6.5px;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;background:var(--fg);box-shadow:0 0 0 3px var(--bg)}
+.fx-ga-scrub.glide .knob{transition:left .6s var(--fx-ease)}.fx-ga-scrub.glide .fill{transition:width .6s var(--fx-ease)}
+.fx .fx-ga-scrub:focus-visible{outline:none}
+.fx-ga-scrub:focus-visible .knob{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--fg3)}
+
+/* the sample-efficiency table, quieter: no row rules, scorer colours on the two step columns */
+#tbl-sample-efficiency th{font-family:var(--fx-mono);font-weight:400;font-size:10.5px;letter-spacing:.08em;color:var(--fg5);border-bottom-color:var(--rule)}
+#tbl-sample-efficiency td{border-bottom:0;color:var(--fg2);padding-top:.42rem;padding-bottom:.42rem}
+#tbl-sample-efficiency tbody tr:first-child td{padding-top:.75rem}
+#tbl-sample-efficiency th:nth-child(2){color:var(--fx-jud)}#tbl-sample-efficiency th:nth-child(3){color:var(--fx-ver)}
+#tbl-sample-efficiency td:nth-child(3){color:var(--fx-ver)}
+#tbl-sample-efficiency td b{font-weight:500;color:var(--fg)}
 
 /* ---------- 7 · agreement with human votes (placeholder) ---------- */
 .fx-hp{display:grid;grid-template-columns:repeat(2,minmax(0,auto));justify-content:center;gap:28px 56px}
