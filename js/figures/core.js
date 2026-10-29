@@ -54,12 +54,12 @@ window.FX = (function () {
   /* deterministic random numbers for the simulated figure */
   function rng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
   const gauss = r => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
-  /* pause / play icon button, styled like the cover's */
+  /* pause / play icon button, styled like the cover's; with `label`, a small pill that also says "Pause" / "Play" */
   const PAUSE = 'M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z', PLAY = 'M4 2l8 5-8 5z';
-  function playButton(onClick) {
-    const p = s('path', { d: PAUSE, fill: 'currentColor' });
-    const b = h('button', { type: 'button', class: 'fx-btn', 'aria-label': 'Pause animation' }, s('svg', { viewBox: '0 0 14 14', 'aria-hidden': 'true' }, p));
-    b.set = playing => { p.setAttribute('d', playing ? PAUSE : PLAY); b.setAttribute('aria-label', playing ? 'Pause animation' : 'Play animation') };
+  function playButton(onClick, label) {
+    const p = s('path', { d: PAUSE, fill: 'currentColor' }), t = label ? h('span', { 'aria-hidden': 'true' }, 'Pause') : null;
+    const b = h('button', { type: 'button', class: 'fx-btn' + (label ? ' fx-btn-l' : ''), 'aria-label': 'Pause animation' }, s('svg', { viewBox: '0 0 14 14', 'aria-hidden': 'true' }, p), t);
+    b.set = playing => { p.setAttribute('d', playing ? PAUSE : PLAY); b.setAttribute('aria-label', playing ? 'Pause animation' : 'Play animation'); if (t) t.textContent = playing ? 'Pause' : 'Play' };
     b.addEventListener('click', onClick);
     return b;
   }

@@ -1,19 +1,21 @@
 /* More paintings over RL training: the prompts (each with its finished painting, small) beside one large painting,
    and a quiet scrubber for its training step.
-   Autoplay: the current prompt's painting paints itself at step 100, holds, then repaints itself over that at 200,
-   300 and 400 (brush mark by brush mark, like the cover: js/painter.js), then the next prompt starts on fresh paper.
-   A hairline under the current prompt shows how far it has got. Any input (a prompt, the scrubber, the arrow keys)
-   pauses the autoplay; the play button resumes it. Dragging the scrubber cross-fades between steps; a tap on a step
-   repaints it. Only runs while in view. Reduced motion: no autoplay, step 400, changes without animation. */
+   Autoplay is on by default and keeps going: the current prompt's painting paints itself at step 100, holds, then
+   repaints itself over that at 200, 300 and 400 (brush mark by brush mark, like the cover: js/painter.js), then the
+   next prompt starts on fresh paper, and so on round the six. A hairline under the current prompt shows how far it
+   has got. Picking a prompt jumps to it and plays it from step 100. A tap on a step (or the arrow keys) paints that
+   step and carries on from there; dragging the scrubber cross-fades between steps, and the autoplay waits a moment on
+   the step it settles on, then carries on. Only the Pause button stops it (and Play resumes it; a prompt also plays).
+   Only runs while in view. Reduced motion: no autoplay, step 400, changes without animation. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-gallery'); if (!root || !window.FX || !window.FIG) return;
   const { h, reduced, paint, clamp, tween, ease, playButton } = FX;
   const RM = reduced() || !window.Painter;
   const P = FIG.demos.more, STEPS = [100, 200, 300, 400], LAST = STEPS.length - 1;
-  const HOLD = 1300, HOLD_LAST = 2600, SPEED0 = 1.05, SPEED = 1.25; // ms; painting speeds (first from paper, then repaints)
+  const HOLD = 1300, HOLD_LAST = 2600, HOLD_SCRUB = 2400, SPEED0 = 1.05, SPEED = 1.25; // ms; painting speeds (from paper, then repaints)
   const src = (pi, k) => `demos/${P[pi][1]}-iter${k + 1}.jpg`;
-  let p = 0, pos = RM ? LAST : 0, cur = null, gen = 0, glide = null, auto = !RM, run = 0, vis = false;
+  let p = 0, pos = RM ? LAST : 0, cur = null, gen = 0, glide = null, auto = !RM, run = 0, loopId = -1, vis = false, seg = null;
 
   // the painting: two images for cross-fading while scrubbing, and a canvas for painting
   const imA = paint(src(0, pos), '', { loading: null }), imB = paint(src(0, pos), '', { loading: null, 'aria-hidden': 'true' }), cv = RM ? null : h('canvas', { 'aria-hidden': 'true' });
@@ -26,16 +28,17 @@
     return { b, bar: prog.firstChild };
   });
   const list = h('div', { class: 'fx-ga-list', role: 'group', 'aria-label': 'Prompt' }, items.map(x => x.b));
-  // steps: a hairline with four stops, and the autoplay button at its end
+  // steps: a hairline with four stops, and the Pause / Play button at its end
   const fill = h('span', { class: 'fill' }), knob = h('span', { class: 'knob' });
   const stops = STEPS.map((st, k) => h('span', { class: 'stop', style: { left: k / LAST * 100 + '%' } }, h('i'), h('b', {}, st)));
   const track = h('div', { class: 'track' }, fill, stops, knob);
   const scrub = h('div', { class: 'fx-ga-scrub', role: 'slider', tabindex: '0', 'aria-label': 'Training step', 'aria-valuemin': '100', 'aria-valuemax': '400' }, track);
-  const btn = playButton(() => { if (auto) stopAuto(); else startAuto() });
+  const btn = playButton(() => { if (auto) setAuto(false); else { setAuto(true); if (loopId !== run) fromHere() } }, true);
   btn.classList.add('fx-ga-btn');
   if (RM) btn.style.display = 'none';
   btn.set(auto);
-  root.append(h('div', { class: 'fx-ga' }, list, h('div', { class: 'fx-ga-stage' }, view, h('div', { class: 'fx-ga-ctl' }, scrub, btn))));
+  const wrap = h('div', { class: 'fx-ga' }, list, h('div', { class: 'fx-ga-stage' }, view, h('div', { class: 'fx-ga-ctl' }, scrub, btn)));
+  root.append(wrap);
 
   function ui() {
     const k = Math.round(pos);
@@ -66,81 +69,95 @@
   }
   function stopGlide() { if (glide) { glide(); glide = null } }
   // paint step k over what is showing, or as a new painting (paper washed over what is showing, or a blank sheet);
-  // resolves true if it ran to the end
+  // resolves true if it ran to the end. A paint started while paused waits for Play.
   function paintTo(k, fresh, speed) {
     stopGlide();
     const blank = view.classList.contains('blank'), was = finishPaint(), target = src(p, k); gen++;
     view.classList.remove('blank'); scrub.classList.add('glide'); pos = k; ui();
     if (RM) { show(k); return Promise.resolve(true) }
-    const job = cur = Painter.paint(cv, target, { from: blank ? 'paper' : was ? cv : imA, wash: !!fresh, max: 420, speed: speed || SPEED });
+    const job = cur = Painter.paint(cv, target, { from: blank ? 'paper' : was ? cv : imA, wash: !!fresh, max: 420, speed: speed || SPEED, onFrame: bar });
     view.classList.add('painting');
     return job.done.then(ok => {
       if (cur !== job) return false;
       cur = null; show(k); dropCanvas(); return ok;
     });
   }
-  // a pause that only counts while the figure is on screen
+
+  /* ---- the hairline under the current prompt: a quarter per step, filled as that step paints and holds ---- */
+  function bar() {
+    if (!seg || seg.run !== run || RM) return;
+    const j = seg.job, pt = j && j.total ? j.total * 1000 : seg.est, done = j ? Math.min(pt, (j.total ? j.time() : 0) * 1000) : pt;
+    const f = clamp((Math.max(0, done) + seg.held) / Math.max(1, pt + seg.hold), 0, 1);
+    items[p].bar.style.transform = `scaleX(${((seg.k + f) / 4).toFixed(4)})`;
+  }
+  function clearBars() { items.forEach(x => { x.bar.style.transform = 'scaleX(0)' }) }
+  // a pause that only counts while the figure is on screen and playing
   function hold(ms, my) {
+    const sg = seg;
     return new Promise(res => {
-      let left = ms, lastT = 0;
+      let lastT = 0;
       const step = now => {
         if (run !== my) return res(false);
-        if (vis) left -= lastT ? now - lastT : 0;
-        lastT = now;
-        if (left <= 0) res(true); else requestAnimationFrame(step);
+        if (lastT && vis && auto) sg.held += Math.min(100, now - lastT);
+        lastT = now; bar();
+        if (sg.held >= ms) res(true); else requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
     });
   }
-  // progress hairline under the current prompt: eases to `to` (0..1) over `secs`
-  function progress(to, secs) {
-    items.forEach((x, i) => { if (i !== p) { x.bar.style.transition = 'none'; x.bar.style.transform = 'scaleX(0)' } });
-    const b = items[p].bar; b.style.transition = secs ? `transform ${secs}s linear` : 'none'; b.style.transform = `scaleX(${to})`;
-  }
-  function freezeProgress() { const b = items[p].bar, m = getComputedStyle(b).transform; b.style.transition = 'none'; b.style.transform = m === 'none' ? 'scaleX(0)' : m }
 
-  async function autoplay(k0) {
-    const my = ++run;
+  /* ---- the autoplay: from step k0 of the current prompt, on through the steps and round the prompts.
+     o.shown: step k0 is already showing (after a drag), so it only holds, for o.hold ms. ---- */
+  async function autoplay(k0, o) {
+    o = o || {};
+    const my = loopId = ++run;
     for (let k = k0; ; k++) {
-      if (k > LAST) { k = 0; p = (p + 1) % P.length; warm(p) }
+      if (k > LAST) { k = 0; p = (p + 1) % P.length; clearBars() }
       if (k === 0) warm((p + 1) % P.length);
-      const fresh = k === 0;
-      // the hairline moves through this step's share while it paints and holds
-      progress(k / 4, 0);
-      const est = (k === 0 ? 3.7 / SPEED0 : 3.7 / SPEED) + (k === LAST ? HOLD_LAST : HOLD) / 1000;
-      requestAnimationFrame(() => { if (run === my) progress((k + 1) / 4, est) });
-      if (!(await paintTo(k, fresh, k === 0 ? SPEED0 : SPEED)) || run !== my) return;
-      if (!(await hold(k === LAST ? HOLD_LAST : HOLD, my))) return;
+      const ms = o.hold || (k === LAST ? HOLD_LAST : HOLD);
+      seg = { run: my, k, job: null, est: o.shown ? 0 : (k === 0 ? 3.7 / SPEED0 : 3.7 / SPEED) * 1000, hold: ms, held: 0 };
+      if (!o.shown) {
+        // a new prompt, or a step back, starts on fresh paper; a step forward repaints over the one before
+        const fresh = k === 0 || o.back, pr = paintTo(k, fresh, k === 0 ? SPEED0 : SPEED);
+        seg.job = cur; if (!auto && cur) cur.pause();
+        if (!(await pr) || run !== my) return;
+      }
+      o = {};
+      if (!(await hold(ms, my))) return;
     }
   }
-  function startAuto() {
-    if (RM) return;
-    auto = true; btn.set(true); root.classList.add('auto');
-    // carry on from the step showing (a finished step 400 moves on to the next prompt)
+  // carry on from the step showing (a finished step 400 moves on to the next prompt)
+  function fromHere() {
     const k = Math.round(pos);
-    autoplay(view.classList.contains('blank') ? 0 : k >= LAST ? LAST + 1 : k + 1);
+    autoplay(view.classList.contains('blank') ? 0 : k + 1);
   }
-  function stopAuto() {
-    if (!auto) return;
-    auto = false; run++; btn.set(false); root.classList.remove('auto'); freezeProgress();
+  function setAuto(on) {
+    auto = on; btn.set(on); root.classList.toggle('paused', !on);
+    if (cur) on ? cur.resume() : cur.pause();
+  }
+  // a manual move: cancels the running loop; with autoplay on, the loop starts again from that step
+  function goTo(k) {
+    const back = k < Math.round(pos), same = k === Math.round(pos) && !cur && !view.classList.contains('blank');
+    run++; stopGlide();
+    if (auto) autoplay(k, same ? { shown: true, hold: HOLD_SCRUB } : { back });
+    else if (k !== Math.round(pos) || cur || view.classList.contains('blank')) paintTo(k, back);
   }
   const warm = pi => { if (!RM) STEPS.forEach((_, k) => Painter.prefetch(src(pi, k), cv, 420)) };
 
-  // a prompt: pauses the autoplay and paints that prompt at the step the scrubber shows
+  // a prompt: jumps to it and plays it from step 100 (it also turns a paused autoplay back on)
   function pick(i) {
-    stopAuto();
-    if (i === p && !cur && !view.classList.contains('blank')) return;
-    finishPaint(); p = i; warm(i); items.forEach(x => { x.bar.style.transition = 'none'; x.bar.style.transform = 'scaleX(0)' });
+    run++; stopGlide(); finishPaint();
+    p = i; warm(i); clearBars();
     if (RM) { show(LAST); return }
-    paintTo(Math.round(pos), true, 1.35);
+    setAuto(true); autoplay(0);
   }
 
-  // scrubber: dragging cross-fades between steps; a tap on a step repaints it. Either pauses the autoplay.
+  // scrubber: dragging cross-fades between steps; a tap on a step paints it
   let drag = null;
   const at = e => { const r = track.getBoundingClientRect(); return clamp((e.clientX - r.left) / r.width, 0, 1) * LAST };
   scrub.addEventListener('pointerdown', e => {
     if (e.button) return;
-    stopAuto(); stopGlide(); finishPaint();
+    run++; stopGlide(); finishPaint();
     drag = { x: e.clientX, moved: false, from: pos };
     try { scrub.setPointerCapture(e.pointerId) } catch (er) { /* synthetic events */ }
   });
@@ -152,21 +169,22 @@
   scrub.addEventListener('pointerup', e => {
     if (!drag) return;
     const d = drag; drag = null;
-    if (d.moved) glideTo(Math.round(pos));
-    else { const k = Math.round(at(e)); if (k !== Math.round(d.from) || view.classList.contains('blank')) paintTo(k) }
+    if (d.moved) settle(Math.round(pos));
+    else goTo(Math.round(at(e)));
   });
-  scrub.addEventListener('pointercancel', () => { if (drag) { drag = null; glideTo(Math.round(pos)) } });
-  // a drag settles on the nearest step, fading the rest of the way
-  function glideTo(k) {
+  scrub.addEventListener('pointercancel', () => { if (drag) { drag = null; settle(Math.round(pos)) } });
+  // a drag settles on the nearest step, fading the rest of the way; the autoplay waits there a moment, then carries on
+  function settle(k) {
     const x0 = pos; stopGlide();
-    if (RM || x0 === k) { show(k); return }
-    glide = tween(260, t => show(x0 + (k - x0) * ease.out(t)), () => { glide = null });
+    if (RM || x0 === k) show(k);
+    else glide = tween(260, t => show(x0 + (k - x0) * ease.out(t)), () => { glide = null });
+    if (auto && !RM) { items.forEach((x, i) => { if (i !== p) x.bar.style.transform = 'scaleX(0)' }); autoplay(k, { shown: true, hold: HOLD_SCRUB }) }
   }
   scrub.addEventListener('keydown', e => {
     const k = Math.round(pos), to = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? k + 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? k - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? LAST : null;
     if (to == null) return;
-    e.preventDefault(); stopAuto();
-    const t = clamp(to, 0, LAST); if (t !== k || cur) paintTo(t);
+    e.preventDefault();
+    goTo(clamp(to, 0, LAST));
   });
 
   show(pos);
@@ -175,6 +193,6 @@
     const pre = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pre.disconnect(); warm(p) } }, { rootMargin: '600px 0px' });
     pre.observe(view);
     FX.watch(view, v => { vis = v }, .2);
-    FX.onVisible(view, () => { if (auto && run === 0) { root.classList.add('auto'); autoplay(0) } }, .5);
+    FX.onVisible(view, () => { if (run !== 0) return; if (auto) autoplay(0); else { view.classList.remove('blank'); show(pos) } }, .5);
   }
 })();

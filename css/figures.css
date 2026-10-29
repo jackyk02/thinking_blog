@@ -44,6 +44,9 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-btn{width:24px;height:24px;border-radius:50%;border:0;background:var(--code-bg);color:var(--fg3);display:grid;place-items:center;cursor:pointer;padding:0;flex:0 0 auto}
 .fx-btn svg{width:11px;height:11px}
 .fx-btn:hover{color:var(--fg)}
+/* with a label: a small quiet pill that says what a click will do */
+.fx-btn.fx-btn-l{width:auto;min-width:66px;height:26px;padding:0 11px 0 9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;font:500 12px/1 var(--font-sans);letter-spacing:.01em}
+.fx-btn.fx-btn-l svg{width:9px;height:9px}
 
 /* painted frames: the image under a canvas that paints it in (js/figures/painter.js); .done shows the image itself */
 .fx-pv{position:relative;border-radius:4px;overflow:hidden;background:var(--panel);box-shadow:0 0 0 1px var(--fx-ring)}
@@ -264,6 +267,8 @@ figure.fx>figcaption{margin-top:1rem}
 .fx .fx-ga-scrub:focus-visible{outline:none}
 .fx-ga-scrub:focus-visible .knob{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--fg3)}
 .fx-ga-btn{margin-top:-6px}
+/* paused: the button says Play, and the current prompt's hairline dims where it stopped */
+.paused .fx-ga-prog i{background:var(--fg5)}
 @media (max-width:600px){
   .fx-ga{grid-template-columns:minmax(0,1fr)}
   .fx-ga-list{order:2;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 6px}
