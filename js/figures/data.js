@@ -30,9 +30,11 @@ window.FIG = {
     pipeline: { pear: [0.58,0.71,0.39,0.68,0.63], hydrangea: [0.52,0.61,0.66,0.57,0.41] },
     /* Same group under both rewards. Needs: the same five renders re-scored with the judge prompt and the verifier. */
     grpo: { judge: [7,7,7,7,7], verifier: [0.58,0.71,0.39,0.68,0.63] },
-    /* Daisies (1.jpg, 2.jpg): judge token and verifier distribution means/spreads on the 1–20 scale.
-       Needs: the verifier's 20 score-token probabilities for each painting (one call per criterion), and the judge's actual output. */
-    daisies: { judge: [5,5], judgeLevels: 10, verifier: [{ mu: 0.62, sd: 0.11 }, { mu: 0.78, sd: 0.085 }] },
+    /* Four crimson daisies from one prompt (steps 100, 200, 300, 400; 1.jpg and 2.jpg are steps 300 and 400):
+       judge token on its 10 levels, verifier distribution mean/spread on the 1–20 scale (mu 0..1 maps to 1..20).
+       Needs: the judge's actual output and the verifier's 20 score-token probabilities for each painting (one call per criterion). */
+    daisies: { imgs: ["demos/crimson-daisy-iter1.jpg","demos/crimson-daisy-iter2.jpg","1.jpg","2.jpg"], judge: [5,5,5,5], judgeLevels: 10,
+      verifier: [{ mu: 0.495, sd: 0.1 }, { mu: 0.33, sd: 0.12 }, { mu: 0.62, sd: 0.11 }, { mu: 0.78, sd: 0.085 }] },
     /* Agreement with human pairwise votes, out of 100 pairs. Needs: BrushArena pairs with vote counts; judge and verifier run on each pair. */
     human: { judge: { agree: 52, tie: 18 }, verifier: { agree: 68, tie: 0 } },
     /* Best-of-N: held-out score of the pick. Needs: ~50 held-out prompts × 32 samples, judge + verifier + Kimi score for each sample. */

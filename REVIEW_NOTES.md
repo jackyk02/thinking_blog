@@ -32,7 +32,7 @@ Each one carries an amber "placeholder data" or "simulated" tag. All placeholder
 
 | Figure | What is placeholder | Data needed |
 |---|---|---|
-| Daisies (Limitations) | judge token, verifier distributions | the verifier's 20 score-token probabilities for 1.jpg and 2.jpg (one call per criterion), and the judge's actual outputs |
+| Daisies (Limitations) | judge token, verifier distributions | for all four crimson daisies (`demos/crimson-daisy-iter1/2.jpg`, `1.jpg`, `2.jpg`): the judge's actual outputs and the verifier's 20 score-token probabilities (one call per criterion) |
 | Break the tie (How it works) | simulated | the verifier's token probabilities for one group at C = 3, K = 4, G = 20 (keep K = 8 to subsample), plus judge outputs for the same group |
 | Pipeline | verifier scores per painting | one logged v3 training group: 5 sketches, renders, pairwise scores, advantages |
 | Ties give GRPO nothing (Pipeline) | judge and verifier scores | the same 5 renders re-scored with the judge prompt and the verifier |
@@ -51,3 +51,4 @@ Real data: the held-out curves, the tie-rate chart, the table, and all paintings
 
 - **The paintings now paint themselves, but these are not replays.** The cover replays the real `flower.js`. For the other paintings (`demos/`, `img/group/`) there are no sketches in the repo, so `js/figures/painter.js` rebuilds a reveal from each image: it splits the image into colour regions, lays them down as washes (lights first, darks last, each blooming from its deepest point with a ragged wet edge), then sharpens to the real image. The last frame is the image itself. **To make these exact replays, we need the p5.brush sketches** for: `demos/*-iter{1..4}.jpg` (9 prompts × 4 steps) and the pear and hydrangea groups in `img/group/`. With them, the cover's capture code (`js/hero.js`, `precompute`) can produce per-call layers for the same playback.
   - Painting quality over training: each step's three paintings paint in as the curves reach that step (rows ~0.5 s apart, ~3 s each). Off-screen paintings wait.
+  - Limitations of LLM-as-a-Judge: redesigned to read from the paintings alone. Four crimson daisies from one prompt (steps 100–400; `1.jpg` and `2.jpg` are steps 300 and 400) land in one pile at 5 on the judge's 10-level scale, then the same four slide apart on the verifier's 20-token scale, each with a soft glow for its distribution. **The two extra paintings add two more placeholder distributions** (`FIG.placeholder.daisies`), and the order of the four on the verifier scale is a guess. The caption now says "four daisies". If you would rather keep exactly the two paintings from the text, set `imgs` to the last two entries.

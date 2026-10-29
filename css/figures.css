@@ -73,19 +73,31 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-tr .gap{fill:none;stroke:var(--fg5);stroke-width:1.2}
 
 /* ---------- 2 · the judge's tie, and what the verifier sees ---------- */
-.fx-jt{display:grid;grid-template-columns:minmax(0,1fr) 72px minmax(0,1fr);column-gap:10px;row-gap:16px;align-items:end;max-width:540px;margin:0 auto}
-.fx-jt .mid{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:2px;padding-bottom:20px}
-.fx-jt .sym{font-family:var(--font-sans);font-size:26px;line-height:1;color:var(--fg4);opacity:0;transform:scale(.6);transition:opacity .5s var(--fx-ease),transform .5s var(--fx-ease)}
-.fx-jt .sym.v{color:var(--fx-ver)}
-.fx-jt.s1 .sym.j,.fx-jt.s2 .sym.v{opacity:1;transform:none}
-.fx-jt .hist svg{width:100%;height:auto}
-.fx-jt .hist rect{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);transition:transform .55s var(--fx-ease);transition-delay:var(--d,0ms)}
-.fx-jt.s1 .hist.j rect,.fx-jt.s2 .hist.v rect{transform:none}
-.fx-jt .hist .ev{stroke:var(--fg);stroke-width:1.5;opacity:0;transition:opacity .4s .55s}
-.fx-jt.s2 .hist .ev{opacity:1}
-.fx-jt .num{display:block;text-align:center;font-family:var(--font-sans);font-size:15px;font-weight:500;color:var(--fg);font-variant-numeric:tabular-nums;margin-top:4px;opacity:0;transition:opacity .4s}
-.fx-jt.s1 .hist.j+.num,.fx-jt.s2 .hist.v+.num{opacity:1}
-@media (max-width:520px){.fx-jt{grid-template-columns:minmax(0,1fr) 54px minmax(0,1fr);column-gap:6px}.fx-jt .sym{font-size:22px}.fx-jt .mid .fx-k{font-size:9.5px}}
+.fx-jt{position:relative;outline:none;cursor:default;-webkit-tap-highlight-color:transparent}
+.fx-jt-svg{position:absolute;left:0;top:0}
+.fx-jt-svg .tick{stroke:var(--rule)}
+.fx-jt-svg text.at{fill:var(--fg3)}
+.fx-jt-l{position:absolute;left:0;transform:translateY(-50%)}
+.fx-jt-l.j{color:var(--fx-jud)}.fx-jt-l.v{color:var(--fx-ver)}
+.fx-jt-p{position:absolute;box-shadow:0 0 0 1px var(--fx-ring),0 1px 6px rgba(0,0,0,.18);will-change:transform,opacity;
+  transition:transform .6s var(--fx-ease),opacity .45s var(--fx-ease);transition-delay:var(--d,0ms)}
+/* judge: the paintings drop onto one spot and stay there, fanned like a stack of cards */
+.fx-jt-p.j{opacity:0;transform:translate(var(--dx),-28px) rotate(var(--r))}
+.fx-jt.s1 .fx-jt-p.j{opacity:1;transform:translate(var(--dx),0) rotate(var(--r))}
+.fx-jt-svg .spike{fill:var(--fx-jud);transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);transition:transform .6s var(--fx-ease) .45s}
+.fx-jt.s1 .spike{transform:none}
+.fx-jt-svg .at{opacity:0;transition:opacity .4s .7s}
+.fx-jt.s1 .at{opacity:1}
+/* verifier: the same paintings come down from that pile, then slide apart to their own scores */
+.fx-jt-p.v{opacity:0;transform:translate(var(--dx),var(--lift)) rotate(var(--r))}
+.fx-jt.s2 .fx-jt-p.v{opacity:1;transform:translate(var(--dx),0) rotate(var(--r));transition-duration:.7s,.5s}
+.fx-jt.s3 .fx-jt-p.v{transform:translate(var(--tx),0) rotate(0deg);transition:transform 1.15s var(--fx-ease-io),opacity .5s;transition-delay:var(--d2,0ms)}
+.fx-jt-svg .glow{fill:url(#fx-jt-glow);transform-box:fill-box;transform-origin:50% 100%;opacity:0;transform:scaleY(.15);
+  transition:opacity .8s var(--fx-ease),transform .9s var(--fx-ease);transition-delay:calc(var(--d,0ms) + .55s)}
+.fx-jt.s3 .glow{opacity:1;transform:none}
+.fx-jt-svg .ev{fill:var(--fx-ver);stroke:var(--bg);stroke-width:1.5;opacity:0;transition:opacity .4s;transition-delay:calc(var(--d,0ms) + .9s)}
+.fx-jt.s3 .ev{opacity:1}
+.fx-jt.reset *{transition:none!important}
 
 /* ---------- 3 · break the tie (granularity, repeats, criteria) ---------- */
 .fx-bt-ctrl{display:flex;gap:8px;flex-wrap:wrap}
