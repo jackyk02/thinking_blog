@@ -46,3 +46,8 @@ Real data: the held-out curves, the tie-rate chart, the table, and all paintings
 - Figures live in `js/figures/*.js`, styles in `css/figures.css`, data in `js/figures/data.js`. No new libraries.
 - Removed the inline chart and pipeline code and their CSS. The tie-rate chart moved to `js/figures/tie-rate.js` unchanged.
 - The two new subsections are marked with `<!-- PROPOSAL -->` comments in `index.html`.
+
+## Round 2: animated figures (Surya's visual review)
+
+- **The paintings now paint themselves, but these are not replays.** The cover replays the real `flower.js`. For the other paintings (`demos/`, `img/group/`) there are no sketches in the repo, so `js/figures/painter.js` rebuilds a reveal from each image: it splits the image into colour regions, lays them down as washes (lights first, darks last, each blooming from its deepest point with a ragged wet edge), then sharpens to the real image. The last frame is the image itself. **To make these exact replays, we need the p5.brush sketches** for: `demos/*-iter{1..4}.jpg` (9 prompts × 4 steps) and the pear and hydrangea groups in `img/group/`. With them, the cover's capture code (`js/hero.js`, `precompute`) can produce per-call layers for the same playback.
+  - Painting quality over training: each step's three paintings paint in as the curves reach that step (rows ~0.5 s apart, ~3 s each). Off-screen paintings wait.

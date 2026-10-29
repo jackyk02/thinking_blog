@@ -1,11 +1,14 @@
 /* Painting quality over RL training.
    Each column of paintings sits directly above its training step on the chart's x-axis.
-   First view: both curves draw left to right and each column fades in as the curves reach it.
-   Hover, drag or use the arrow keys to light one step and read both curves there. */
+   First view: both curves draw left to right, and as they reach a step its three paintings paint themselves,
+   one after another, with the cover's watercolour reveal (js/figures/painter.js). Paintings off screen wait.
+   Hover, drag or use the arrow keys to light one step and read both curves there.
+   Reduced motion: the finished paintings and curves, no movement. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-training'); if (!root || !window.FX || !window.FIG) return;
-  const { h, s, clamp, reduced, ease, responsive, onVisible, tween, paint } = FX;
+  const { h, s, clamp, reduced, responsive, onVisible, tween, paint } = FX;
+  const RM = reduced() || !FX.painter;
   const D = FIG, ROWS = D.demos.top, ST = [100, 200, 300, 400], X1 = 500, Y0 = .5, Y1 = .78;
   const meanOf = arm => {
     const sd = D.heldout.seeds[arm], maps = sd.map(x => new Map(x));
@@ -18,7 +21,12 @@
   const imgs = [], labels = [];
   ROWS.forEach(([name, slug], ri) => {
     labels.push(root.appendChild(h('div', { class: 'fx-tr-lbl', 'aria-hidden': 'true' }, name)));
-    ST.forEach((st, k) => imgs.push(Object.assign(root.appendChild(paint(`demos/${slug}-iter${k + 1}.jpg`, `${name}, step ${st}`, { class: 'fx-paint fx-tr-img' })), { _k: k, _r: ri })));
+    ST.forEach((st, k) => {
+      // a frame per painting: the image itself, and a canvas that paints it the first time the curves reach its step
+      const src = `demos/${slug}-iter${k + 1}.jpg`, img = paint(src, `${name}, step ${st}`), cv = RM ? null : h('canvas', { 'aria-hidden': 'true' });
+      const el = root.appendChild(h('div', { class: 'fx-tr-img fx-pv' + (RM ? ' done' : '') }, img, cv));
+      imgs.push(Object.assign(el, { _k: k, _r: ri, _src: src, _img: img, _cv: cv }));
+    });
   });
   root.setAttribute('tabindex', '0');
   root.setAttribute('role', 'group');
@@ -87,8 +95,14 @@
     progress = p; if (!L) return;
     const xs = L.X(p * X1);
     L.clip.setAttribute('width', p >= 1 ? L.W : Math.max(0, xs + 1));
-    imgs.forEach(im => im.classList.toggle('in', p * X1 >= ST[im._k] - 12));
+    imgs.forEach(im => { if (p * X1 >= ST[im._k] - 12 && !im.classList.contains('in')) { im.classList.add('in'); if (!RM) paintOne(im, im._r * .45) } });
     L.ends.forEach(e => e.classList.toggle('in', p >= .985));
+  }
+  // the frame shows blank paper at once; the three rows of a step start painting about half a second apart
+  function paintOne(im, delay) {
+    if (im._job) return;
+    im._job = FX.painter.paint(im._cv, im._src, { speed: 1.15, delay });
+    im._job.done.then(() => FX.painter.load(im._src)).catch(() => {}).then(() => im.classList.add('done'));
   }
 
   function focusStep(step) {
@@ -123,5 +137,12 @@
   document.addEventListener('pointerdown', e => { if (focusK != null && !root.contains(e.target)) clearFocus() });
 
   responsive(root, layout);
-  onVisible(root, () => { if (reduced()) setProgress(1); else tween(2400, t => setProgress(ease.inOut(t))) }, .3);
+  // decode and analyse the paintings while the figure approaches, so each one is ready when the curves reach it
+  if (!RM) {
+    const pre = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pre.disconnect(); imgs.slice().sort((a, b) => a._k - b._k || a._r - b._r).forEach(im => FX.painter.prefetch(im._src, im._cv)) } }, { rootMargin: '700px 0px' });
+    pre.observe(root);
+  }
+  // the curves take ~8 s, so each step's paintings are mostly done before the next step starts
+  if (RM) setProgress(1);
+  else onVisible(root, () => tween(8200, t => setProgress(.72 * t + .28 * t * t * (3 - 2 * t))), .3);
 })();
