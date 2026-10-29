@@ -130,84 +130,104 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-bt-axis{position:relative;height:30px}
 .fx-bt-axis svg{position:absolute;left:0;top:0}
 
-/* ---------- 4 · RL pipeline ---------- */
-.fx-pl{--slot-gap:14px}
-.fx-pl-head{display:flex;align-items:flex-start;gap:14px}
-.fx-pl-rail{position:relative;flex:1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));list-style:none;margin:0;padding:22px 0 0}
-.fx-pl-rail li{margin:0;min-width:0}
-.fx-pl-rail button{all:unset;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:2px;width:100%;cursor:pointer;text-align:center;position:relative;padding-top:16px}
-.fx-pl-rail button::before{content:"";position:absolute;top:0;left:50%;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:var(--bg);box-shadow:inset 0 0 0 1.5px var(--fg5);transition:background .4s,box-shadow .4s;z-index:1}
-.fx-pl-rail .n{font-size:12.5px;font-weight:500;color:var(--fg5);transition:color .4s;white-space:nowrap}
-.fx-pl-rail .sub{font-family:var(--font-serif);font-style:italic;font-size:12px;color:var(--fg5);white-space:nowrap;transition:color .4s}
-.fx-pl-rail li.past button::before{background:var(--fg4);box-shadow:none}
-.fx-pl-rail li.past .n{color:var(--fg3)}
-.fx-pl-rail li.on button::before{background:var(--fg);box-shadow:0 0 0 4px color-mix(in srgb,var(--fg) 12%,transparent)}
-.fx-pl-rail li.on .n{color:var(--fg)}.fx-pl-rail li.on .sub{color:var(--fg3)}
-.fx-pl-rail li.acc.on button::before{background:var(--fx-ver);box-shadow:0 0 0 4px color-mix(in srgb,var(--fx-ver) 18%,transparent)}
-.fx-pl-rail li.acc.on .n{color:var(--fx-ver)}
-.fx-pl-rail li.self .sub{color:var(--fg4)}
-.fx-pl-wire{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible}
-.fx-pl-wire .base{stroke:var(--rule);stroke-width:1.5}
-.fx-pl-wire .prog{stroke:var(--fg4);stroke-width:1.5;transition:stroke-dashoffset .8s var(--fx-ease)}
-.fx-pl-wire .loop{fill:none;stroke:var(--fg5);stroke-width:1.3;stroke-dasharray:4 4;transition:stroke .4s}
-.fx-pl-wire .loop-head{fill:var(--fg5);transition:fill .4s}
-.fx-pl.st5 .fx-pl-wire .loop{stroke:var(--fg2);animation:fx-flow .7s linear infinite}
-.fx-pl.st5 .fx-pl-wire .loop-head{fill:var(--fg2)}
-@keyframes fx-flow{to{stroke-dashoffset:-16}}
-.fx-pl-now{display:none;font-size:12.5px;color:var(--fg3);margin-top:8px;min-height:1.3em}
-.fx .fx-pl-prompt{font-family:var(--font-serif);font-style:italic;font-size:17px;line-height:1.35;color:var(--fg1);text-align:center;margin:30px auto 0;max-width:620px;transition:opacity .5s,color .4s;text-wrap:balance}
-.fx-pl.st0 .fx-pl-prompt{color:var(--fg)}
-.fx-pl-body{position:relative;padding-top:50px}
-.fx-pl-arcs{position:absolute;left:0;top:0;width:100%;pointer-events:none}
-.fx-pl-arcs path{fill:none;stroke:var(--fx-ver);stroke-width:1.2;opacity:0}
-.fx-pl.arcs .fx-pl-arcs path{animation:fx-arc 1.15s var(--fx-ease-io) both;animation-delay:var(--d)}
-@keyframes fx-arc{0%{opacity:0;stroke-dashoffset:var(--len)}25%{opacity:.85}70%{opacity:.6;stroke-dashoffset:0}100%{opacity:0;stroke-dashoffset:0}}
-.fx-pl-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--slot-gap)}
-.fx-pl-slot{position:relative;min-width:0}
-.fx-pl-sq{position:relative;aspect-ratio:1;border-radius:4px;background:var(--code-bg);overflow:hidden;box-shadow:0 0 0 1px var(--fx-ring)}
-/* the painting: a canvas paints it in during Render (.paper), then the image itself stays (.done) */
-.fx-pl-sq .fx-paint,.fx-pl-sq canvas{position:absolute;inset:0;width:100%;height:100%;box-shadow:none;border-radius:0;opacity:0;display:block}
-.fx-pl-sq canvas{transition:opacity .45s var(--fx-ease)}
-.fx-pl-sq.paper canvas{opacity:1}
-.fx-pl-sq.done .fx-paint{opacity:1}
-.fx-pl-sq.done canvas{opacity:0;transition:none}
-/* under the painting: the sketch's code as a small strip of lines (Code, Render), then the score distribution (Verify on) */
-.fx-pl-under{position:relative;height:26px;margin:10px 8% 0}
-.fx-pl-code{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;opacity:0;transition:opacity .45s}
-.fx-pl-code i{display:block;flex:none;height:2px;border-radius:1px;background:var(--fg5);opacity:.38;transform-origin:0 50%;transform:scaleX(0);
-  transition:transform .45s var(--fx-ease),opacity .3s,background-color .3s;transition-delay:var(--d),0s,0s}
-.fx-pl.st1 .fx-pl-code,.fx-pl.st2 .fx-pl-code{opacity:1}
-.fx-pl.st1 .fx-pl-code i,.fx-pl.st2 .fx-pl-code i{transform:scaleX(1)}
-.fx-pl-code i.run{opacity:1;transition-delay:0s}
-.fx-pl-code i.on{opacity:1;background:var(--fg);transition-delay:0s}
-.fx-pl-dist{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;justify-content:center;gap:1.5px;height:20px}
-.fx-pl-dist i{flex:1;max-width:6px;border-radius:1px 1px 0 0;background:color-mix(in srgb,var(--fx-ver) 70%,transparent);height:calc(var(--h) * 20px);transform-origin:50% 100%;transform:scaleY(0);transition:transform .5s var(--fx-ease);transition-delay:var(--d)}
-.fx-pl.st3 .fx-pl-dist i,.fx-pl.st4 .fx-pl-dist i,.fx-pl.st5 .fx-pl-dist i{transform:none}
-.fx-pl-score{display:block;text-align:center;font-size:12.5px;font-weight:500;color:var(--fx-ver);font-variant-numeric:tabular-nums;margin-top:3px;height:1.3em;opacity:0;transition:opacity .4s .35s}
-.fx-pl.st3 .fx-pl-score,.fx-pl.st4 .fx-pl-score,.fx-pl.st5 .fx-pl-score{opacity:1}
-.fx-pl-adv{position:relative;height:76px;margin-top:2px}
-.fx-pl-adv .bar{position:absolute;left:50%;width:14px;margin-left:-7px;border-radius:2px;transform:scaleY(0);transition:transform .7s var(--fx-ease);transition-delay:var(--d)}
-.fx-pl-adv .bar.up{bottom:50%;transform-origin:50% 100%;background:var(--fx-ver)}
-.fx-pl-adv .bar.dn{top:50%;transform-origin:50% 0;background:var(--fx-jud)}
-.fx-pl.st4 .fx-pl-adv .bar,.fx-pl.st5 .fx-pl-adv .bar{transform:none}
-.fx-pl.st5 .fx-pl-adv .bar{animation:fx-pulse 1.4s var(--fx-ease-io) .2s}
+/* ---------- 4 · RL pipeline: Jacky's row of boxes, played left to right (js/figures/pipeline.js) ---------- */
+.fx-pp{--bh:168px;--lh:16px;--gap:24px;position:relative;padding-bottom:44px}
+.fx-pp-row{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:.84fr 1.14fr 1fr 1.2fr .84fr;column-gap:var(--gap)}
+.fx-pp-st{position:relative;margin:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+.fx-pp-l{font:600 13px/var(--lh) var(--font-sans);color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .35s}
+.fx-pp-st.on .fx-pp-l{color:var(--fg)}
+.fx-pp-st.v .fx-pp-l{color:var(--fx-ver)}
+.fx-pp-c{font:italic 12.5px/1.3 var(--font-serif);color:var(--fg3)}
+.fx-pp-box{position:relative;height:var(--bh);border-radius:8px;background:var(--code-bg);box-shadow:inset 0 0 0 1px var(--rule);overflow:hidden;container-type:size;transition:box-shadow .35s var(--fx-ease),background-color .35s}
+.fx-pp-st.on .fx-pp-box{box-shadow:inset 0 0 0 1.5px var(--fg);background:var(--bg)}
+.fx-pp-st.v.on .fx-pp-box{box-shadow:inset 0 0 0 1.5px var(--fx-ver)}
+/* the updated policy arrives back at Inkling-Small */
+.fx-pipe.upd .s-code .fx-pp-box{box-shadow:inset 0 0 0 1.5px var(--fg2)}
+/* what a box made stays in it until the next group; between groups everything fades out together */
+.fx-pp-box>*{opacity:0;transition:opacity .45s var(--fx-ease)}
+.fx-pp-st.seen .fx-pp-box>*{opacity:1}
+.fx-pipe.clr .fx-pp-box>*{opacity:0}
+/* chevrons between the boxes; the one being passed along darkens and nudges forward */
+.fx-pp-st:not(:last-child)::after{content:"";position:absolute;right:calc(var(--gap) / -2 - 3px);top:calc(var(--lh) + 8px + var(--bh) / 2);width:7px;height:7px;border-top:1.5px solid var(--fg5);border-right:1.5px solid var(--fg5);transform:translate(-2px,-50%) rotate(45deg);transition:border-color .3s,transform .45s var(--fx-ease)}
+.fx-pp-st.go::after{border-color:var(--fg);transform:translate(1px,-50%) rotate(45deg)}
+.fx-pp-caret{display:inline-block;width:1.5px;height:1.05em;margin-left:1px;vertical-align:-.15em;background:var(--fg);animation:fx-caret 1.05s steps(1) infinite}
+@keyframes fx-caret{50%{opacity:0}}
+/* prompt */
+.fx-pp-q{position:absolute;inset:0;margin:0;padding:0 12px;display:grid;place-items:center;text-align:center;font:italic 14.5px/1.35 var(--font-serif);color:var(--fg1)}
+.fx-pp-q>span{text-wrap:balance}
+.fx-pp-q .fx-pp-caret{display:none}
+.s-prompt.on .fx-pp-q .fx-pp-caret{display:inline-block}
+/* Inkling-Small: the sketch streams in */
+.fx-pp-code{position:absolute;inset:0;padding:11px 0 11px 11px;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 8px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 8px),transparent 100%)}
+.fx-pp-in{font:9.5px/1.55 var(--fx-mono);color:var(--fg2);white-space:pre;transition:transform .22s var(--fx-ease)}
+.fx-pp-in .ln{padding-right:6px;border-radius:2px}
+.fx-pp-in .ln.cur{background:color-mix(in srgb,var(--fg) 6%,transparent)}
+.fx-pp-in .str{color:var(--fg4)}.fx-pp-in .num{color:var(--fg3)}.fx-pp-in .kw{color:var(--fg);font-weight:600}
+.fx-pp-in .fx-pp-caret{height:1.1em}
+.fx-pp-st:not(.on) .fx-pp-in .fx-pp-caret{display:none}
+.fx-pp-st:not(.on) .fx-pp-in .ln.cur{background:none}
+/* Render: a blank white canvas the painting paints itself on */
+.s-render .fx-pp-box{display:flex;align-items:center;justify-content:center}
+.fx-pp-frame{position:relative;width:min(100cqw - 24px,100cqh - 24px);aspect-ratio:1;border-radius:3px;background:#fff;box-shadow:0 0 0 1px var(--fx-ring);overflow:hidden}
+.fx-pp-frame>canvas,.fx-pp-frame>img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fx-pp-rimg{opacity:0}
+.fx-pp-frame.done>.fx-pp-rimg{opacity:1}
+.fx-pp-frame.done>canvas{visibility:hidden}
+.fx-pp-fly{position:absolute;z-index:3;transform-origin:0 0;border-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,.12);pointer-events:none;transition:transform .75s var(--fx-ease-io),border-radius .75s var(--fx-ease-io)}
+/* Verifier: the group, one row each: painting, its score distribution, its expected score */
+.fx-pp-rows{--rh:calc((100cqh - 20px - 16px) / 5);list-style:none;margin:0;padding:10px 12px;position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between}
+.fx-pp-rows li{margin:0;display:grid;grid-template-columns:var(--rh) minmax(0,1fr) auto;align-items:center;column-gap:9px;height:var(--rh)}
+.fx-pp-rows .fx-paint{width:var(--rh);height:var(--rh);border-radius:3px;opacity:0;transform:translateX(-4px);transition:opacity .4s var(--fx-ease),transform .5s var(--fx-ease);transition-delay:calc(var(--i) * 90ms)}
+.fx-pipe.v0 .fx-pp-rows li:first-child .fx-paint{opacity:1;transform:none;transition:none}
+.fx-pipe.v1 .fx-pp-rows .fx-paint{opacity:1;transform:none}
+.fx-pp-dist{display:flex;align-items:flex-end;gap:1.5px;height:70%}
+.fx-pp-dist i{flex:1;max-width:5px;height:max(1.5px,calc(var(--h) * 100%));border-radius:1px 1px 0 0;background:color-mix(in srgb,var(--fx-ver) 72%,transparent);transform-origin:50% 100%;transform:scaleY(0);transition:transform .5s var(--fx-ease);transition-delay:var(--d)}
+.fx-pipe.v2 .fx-pp-dist i{transform:none}
+.fx-pp-rows b{font:500 11.5px/1 var(--font-sans);color:var(--fx-ver);font-variant-numeric:tabular-nums;opacity:0;transition:opacity .4s;transition-delay:calc(var(--i) * 110ms)}
+.fx-pipe.v3 .fx-pp-rows b{opacity:1}
+/* GRPO: the scores as dots, the group mean, then each advantage as a bar from the mean */
+.fx-pp-adv{position:absolute;inset:16px 14px;display:flex;justify-content:space-around}
+.fx-pp-adv .col{position:relative;width:11px;height:100%}
+.fx-pp-mean{position:absolute;left:-4px;right:-4px;top:50%;height:0;border-top:1.2px dashed var(--fg4);transform:scaleX(0);transition:transform .6s var(--fx-ease)}
+.fx-pipe.g2 .fx-pp-mean{transform:none}
+.fx-pp-adv .dot{position:absolute;left:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:var(--fg3);opacity:0;transform:scale(.4);transition:opacity .35s,transform .45s var(--fx-ease);transition-delay:calc(var(--i) * 70ms)}
+.fx-pipe.g1 .fx-pp-adv .dot{opacity:1;transform:none}
+.fx-pipe.g3 .fx-pp-adv .dot{opacity:0;transition-delay:.35s}
+.fx-pp-adv .bar{position:absolute;left:0;right:0;border-radius:2px;transform:scaleY(0);transition:transform .6s var(--fx-ease);transition-delay:calc(var(--i) * 70ms)}
+.fx-pp-adv .bar.up{background:var(--fx-ver);transform-origin:50% 100%}
+.fx-pp-adv .bar.dn{background:var(--fx-jud);transform-origin:50% 0}
+.fx-pipe.g3 .fx-pp-adv .bar{transform:none}
+.fx-pipe.g4 .fx-pp-adv .bar{animation:fx-pulse 1s var(--fx-ease-io)}
 @keyframes fx-pulse{50%{opacity:.45}}
-.fx-pl-mean{position:absolute;left:0;right:0;height:0;border-top:1.2px dashed var(--fg5);opacity:0;transform:scaleX(.2);transition:opacity .5s,transform .7s var(--fx-ease)}
-.fx-pl.st4 .fx-pl-mean,.fx-pl.st5 .fx-pl-mean{opacity:1;transform:none}
-.fx-pl-body.out{opacity:0;transition:opacity .5s}
-.fx-pl-body{transition:opacity .5s}
-@media (max-width:620px){
-  .fx-pl{--slot-gap:7px}
-  .fx-pl-rail .sub{display:none}
-  .fx-pl-rail .n{font-size:10px;letter-spacing:-.01em}
-  .fx-pl-rail{padding-top:20px}
-  .fx-pl-now{display:block;text-align:center}
-  .fx .fx-pl-prompt{font-size:15px;margin:14px auto 0;min-height:2.7em}
-  .fx-pl-adv{height:58px}
-  .fx-pl-body{padding-top:34px}
-  .fx-pl-adv .bar{width:10px;margin-left:-5px}
-  .fx-pl-score{font-size:11px}
+/* the loop back: dashed, lit while the updated policy travels along it */
+.fx-pp-loop{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.fx-pp-loop .track{fill:none;stroke:var(--fg5);stroke-width:1.4;stroke-dasharray:5 5;transition:stroke .4s}
+.fx-pp-loop .head{fill:var(--fg5);transition:fill .4s}
+.fx-pp-loop .pkt{fill:var(--fg);opacity:0;transition:opacity .25s}
+.fx-pipe.looping .fx-pp-loop .track{stroke:var(--fg2);animation:fx-flow .6s linear infinite}
+.fx-pipe.looping .fx-pp-loop .head{fill:var(--fg2)}
+.fx-pipe.pkt .fx-pp-loop .pkt{opacity:1}
+@keyframes fx-flow{to{stroke-dashoffset:-20}}
+.fx-pp-loopl{position:absolute;transform:translate(-50%,-50%);font:10px/1 var(--fx-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg4);background:var(--bg);padding:2px 7px;white-space:nowrap;transition:color .4s}
+.fx-pp-loopl.vert{writing-mode:vertical-rl;transform:translate(-50%,-50%) rotate(180deg);padding:7px 2px}
+.fx-pipe.looping .fx-pp-loopl{color:var(--fg)}
+.fx-pipe.paused *{animation-play-state:paused!important}
+/* phones: the boxes stack, label and caption beside each, arrows down, the loop up the right side */
+@media (max-width:700px){
+  .fx-pp{--gap:26px;padding:0 30px 0 0}
+  .fx-pp-row{grid-template-columns:minmax(0,1fr);row-gap:var(--gap)}
+  .fx-pp-st{display:grid;grid-template-columns:minmax(0,1fr) min(196px,58%);grid-template-rows:auto auto;column-gap:12px;row-gap:3px;align-items:center}
+  .fx-pp-l{grid-column:1;grid-row:1;align-self:end;white-space:normal;font-size:12.5px}
+  .fx-pp-c{grid-column:1;grid-row:2;align-self:start;font-size:12px}
+  .fx-pp-box{grid-column:2;grid-row:1/3}
+  .s-prompt{--bh:66px}.s-code{--bh:112px}.s-render{--bh:150px}.s-verify{--bh:150px}.s-grpo{--bh:92px}
+  .fx-pp-st:not(:last-child)::after{right:calc(min(196px,58%) / 2 - 4px);top:auto;bottom:calc(var(--gap) / -2 - 4px);transform:translate(0,-50%) rotate(135deg)}
+  .fx-pp-st.go::after{transform:translate(0,-20%) rotate(135deg)}
+  .fx-pp-q{font-size:13.5px}
+  .fx-pp-in{font-size:9px}
+  .fx-pp-adv{inset:12px 14px}
 }
+@media (prefers-reduced-motion:reduce){.fx-pp-caret{display:none!important}}
 
 /* ---------- 5 · ties give GRPO nothing to learn from ---------- */
 .fx-gr{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:14px;row-gap:8px;align-items:center}

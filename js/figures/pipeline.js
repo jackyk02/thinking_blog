@@ -1,189 +1,274 @@
-/* RL training pipeline: one group of five real paintings goes through the loop.
-   Prompt → Code (Inkling-Small writes p5.brush) → Render (the code becomes the painting) → Verify (Inkling-Small
-   compares every pair, reads a score distribution, takes its expected value) → Normalise (reward minus the group
-   mean) → Update (GRPO), then the updated policy writes the next group.
-   Code: under each square, a small strip of code lines writes itself. Render: each painting builds up brush mark by
-   brush mark like the cover (js/painter.js): the paper, washes, strokes, details; the strip's lines light up in step
-   with what is being painted. The five paint a beat apart. The lines are schematic and the marks are rebuilt from the
-   finished image (we don't have these sketches). Paintings are real (step 250); the scores are PLACEHOLDER.
-   Loops while visible; pause button; click a stage to hold it. Reduced motion: holds on Normalise. */
+/* RL training pipeline, on Jacky's diagram: five boxes in a row (label above, a short italic caption below, chevrons
+   between) and a dashed loop from GRPO back to Inkling-Small. One cycle plays left to right, and each box keeps what
+   it made, so by the end the whole pipeline is filled in:
+     Prompt         the prompt types itself in.
+     Inkling-Small  a p5.brush sketch streams in, line by line, with a caret.
+     Render         a blank white canvas; the painting paints itself on it (the shared painter, js/painter.js).
+     Verifier       the painting moves over and joins its group of five; each gets a score distribution and its
+                    expected score (green).
+     GRPO           the five scores as dots, the group mean as a dashed line, then each painting's advantage as a bar
+                    from the mean (green above, grey below).
+   Then the loop lights up and carries the updated policy back to Inkling-Small, and the next group starts.
+   Phones: the boxes stack with the label beside each, arrows point down, the loop runs up the right side.
+   Paintings: two real groups at step 250 (FIG.groups). Code: a real p5.brush sketch; the painting's own once it is in
+   FIG.sketches (then Render replays it exactly), until then flower.js / teal_daisy.js. Scores: PLACEHOLDER.
+   Runs only while visible; pause button. Reduced motion: the filled-in pipeline, still. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-pipeline'); if (!root || !window.FX || !window.FIG) return;
-  const { h, s, reduced, responsive, watch, paint, playButton, tag } = FX;
+  const { h, s, reduced, responsive, watch, playButton, tag } = FX;
   const RM = reduced() || !window.Painter;
-  const G = FIG.groups, PH = FIG.placeholder.pipeline;
-  const GROUPS = ['pear', 'hydrangea'].map(k => ({ prompt: G[k].short, imgs: G[k].imgs, r: PH[k], name: k }));
-  const STAGES = [['Prompt', ''], ['Code', 'Inkling-Small'], ['Render', ''], ['Verify', 'Inkling-Small'], ['Normalise', ''], ['Update', 'GRPO']];
-  const DUR = [1100, 1500, 0, 2200, 1900, 1800]; // Render lasts as long as the paintings take
-  const SPEED = 1.15, STAGGER = .26;
-  // the strip's lines, and the part of the painting each one stands for (paper, washes, broad strokes, strokes, details)
-  const LINE_G = [0, 1, 1, 2, 3, 4], LINES = LINE_G.length;
-  let st = 0, gi = 0, playing = !RM, visible = false, timer = 0, started = false, run = 0;
-
-  // rail
-  const items = STAGES.map(([n, sub], i) => h('li', { class: (i === 1 || i === 3 ? 'self ' : '') + (i === 3 ? 'acc' : '') },
-    h('button', { type: 'button', 'aria-label': `${n}${sub ? ' (' + sub + ')' : ''}`, onclick() { hold(i) } }, h('span', { class: 'n' }, n), sub ? h('span', { class: 'sub' }, sub) : null)));
-  const rail = h('ol', { class: 'fx-pl-rail' }, items);
-  const wire = s('svg', { class: 'fx-pl-wire', 'aria-hidden': 'true' });
-  const btn = playButton(() => {
-    playing = !playing; btn.set(playing);
-    slots.forEach(x => x.job && (playing ? x.job.resume() : x.job.pause()));
-    if (playing) { if (st >= 5) st = -1; schedule(st === 2 ? 0 : 400) } else clearTimeout(timer);
+  const G = FIG.groups, PH = FIG.placeholder.pipeline, SK = FIG.sketches || {};
+  const CYC = [['pear', 'flower.js'], ['hydrangea', 'teal_daisy.js']].map(([k, file]) => {
+    const g = G[k], r = PH[k], m = r.reduce((a, b) => a + b) / r.length;
+    return { prompt: g.short, imgs: g.imgs, r, m, adv: r.map(v => v - m), file: SK[g.imgs[0]] || file, lines: null };
   });
+  const STAGES = [
+    { k: 'prompt', name: 'Prompt', cap: 'text prompt' },
+    { k: 'code', name: 'Inkling-Small', cap: 'writes p5.brush JS' },
+    { k: 'render', name: 'Render', cap: 'Puppeteer → PNG' },
+    { k: 'verify', name: 'LLM-as-a-Verifier', cap: 'fine-grained scores', v: true },
+    { k: 'grpo', name: 'GRPO', cap: 'normalize → update' }
+  ];
+  const NB = 12; // bars in each tiny score distribution
+
+  /* ---------------- DOM ---------------- */
+  const boxes = {}, sts = STAGES.map(st => {
+    const box = boxes[st.k] = h('div', { class: 'fx-pp-box', 'aria-hidden': 'true' });
+    return h('li', { class: 'fx-pp-st s-' + st.k + (st.v ? ' v' : '') }, h('span', { class: 'fx-pp-l' }, st.name), box, h('span', { class: 'fx-pp-c' }, st.cap));
+  });
+  // prompt
+  const qTxt = h('span'), qCaret = h('i', { class: 'fx-pp-caret' });
+  boxes.prompt.append(h('p', { class: 'fx-pp-q' }, h('span', {}, qTxt, qCaret)));
+  // code
+  const codeIn = h('div', { class: 'fx-pp-in' }), codeCaret = h('i', { class: 'fx-pp-caret' });
+  boxes.code.append(h('div', { class: 'fx-pp-code' }, codeIn));
+  // render: a white canvas
+  const cv = RM ? null : h('canvas'), rImg = h('img', { class: 'fx-pp-rimg', alt: '', width: 420, height: 420, decoding: 'async' });
+  const rframe = h('div', { class: 'fx-pp-frame' }, rImg, cv);
+  boxes.render.append(rframe);
+  // verifier: the group, one row per painting
+  const rows = [0, 1, 2, 3, 4].map(i => {
+    const im = h('img', { class: 'fx-paint', alt: '', width: 420, height: 420, decoding: 'async', style: { '--i': i } });
+    const bars = Array.from({ length: NB }, (_, b) => h('i', { style: { '--d': i * 110 + b * 14 + 'ms' } }));
+    const sc = h('b', { style: { '--i': i } });
+    return { el: h('li', {}, im, h('span', { class: 'fx-pp-dist' }, bars), sc), im, bars, sc };
+  });
+  boxes.verify.append(h('ul', { class: 'fx-pp-rows' }, rows.map(r => r.el)));
+  // GRPO: scores as dots, the mean, advantages as bars
+  const mean = h('i', { class: 'fx-pp-mean' });
+  const cols = [0, 1, 2, 3, 4].map(i => { const dot = h('i', { class: 'dot', style: { '--i': i } }), bar = h('i', { class: 'bar', style: { '--i': i } }); return { el: h('span', { class: 'col' }, bar, dot), dot, bar } });
+  const adv = h('div', { class: 'fx-pp-adv' }, mean, cols.map(c => c.el));
+  boxes.grpo.append(adv);
+  // the loop back to Inkling-Small
+  const track = s('path', { class: 'track' }), head = s('path', { class: 'head' }), pkt = s('circle', { class: 'pkt', r: 3.5 });
+  const loop = s('svg', { class: 'fx-pp-loop', 'aria-hidden': 'true' }, track, head, pkt);
+  const loopL = h('span', { class: 'fx-pp-loopl', 'aria-hidden': 'true' }, 'updated policy');
+  const ol = h('ol', { class: 'fx-pp-row' }, sts);
+  const wrap = h('div', { class: 'fx-pp' }, ol, loop, loopL);
+  let playing = !RM;
+  const btn = playButton(() => setPlaying(!playing));
   btn.set(playing);
   if (RM) btn.style.visibility = 'hidden';
-  const railWrap = h('div', { style: { position: 'relative', flex: '1', minWidth: '0' } }, wire, rail);
-  const now = h('div', { class: 'fx-pl-now', 'aria-live': 'off' });
-  const prompt = h('p', { class: 'fx-pl-prompt' });
-  const arcs = s('svg', { class: 'fx-pl-arcs', 'aria-hidden': 'true' });
-  // schematic code lines (indents and widths per painting, so each sketch looks a little different)
-  const widths = Array.from({ length: 5 }, (_, i) => { const r = FX.rng(11 + i * 7); return Array.from({ length: LINES }, (_, j) => j === 0 ? .5 + .2 * r() : .34 + .5 * r()) });
-  const slots = [0, 1, 2, 3, 4].map(i => {
-    const bars = widths[i].map((w, j) => h('i', { style: { width: w * (j && LINE_G[j] === LINE_G[j - 1] ? 84 : 92) + '%', marginLeft: (j && LINE_G[j] === LINE_G[j - 1] ? 8 : 0) + '%', '--d': i * 60 + j * 70 + 'ms' } }));
-    const code = h('div', { class: 'fx-pl-code', 'aria-hidden': 'true' }, bars);
-    const img = paint(GROUPS[0].imgs[i], ''), cv = RM ? null : h('canvas', { 'aria-hidden': 'true' });
-    const sq = h('div', { class: 'fx-pl-sq' + (RM ? ' done' : '') }, img, cv);
-    const dist = h('div', { class: 'fx-pl-dist', 'aria-hidden': 'true' }, Array.from({ length: 12 }, (_, b) => h('i', { style: { '--d': i * 60 + b * 18 + 'ms' } })));
-    // the code strip and, from Verify on, the score distribution share the space under the painting
-    const under = h('div', { class: 'fx-pl-under' }, code, dist);
-    const score = h('span', { class: 'fx-pl-score' }), bar = h('span', { class: 'bar' }), adv = h('div', { class: 'fx-pl-adv', 'aria-hidden': 'true' }, bar);
-    return { el: h('div', { class: 'fx-pl-slot' }, sq, under, score, adv), sq, img, cv, bars, dist, score, bar, adv, i, job: null };
-  });
-  const row = h('div', { class: 'fx-pl-row' }, slots.map(x => x.el));
-  const mean = h('div', { class: 'fx-pl-mean', 'aria-hidden': 'true' });
-  const body = h('div', { class: 'fx-pl-body' }, arcs, row, mean);
-  root.append(h('div', { class: 'fx-top split' }, btn, tag()), h('div', { class: 'fx-pl-head' }, railWrap), now, prompt, body);
+  root.append(h('div', { class: 'fx-top split' }, btn, tag()), wrap);
   root.setAttribute('role', 'group');
-  root.setAttribute('aria-label', 'RL training loop: a text prompt; Inkling-Small writes five p5.brush sketches; each sketch renders into a painting; Inkling-Small, as the verifier, compares every pair and scores each painting; scores are centered within the group; GRPO updates the model, which writes the next group.');
+  root.setAttribute('aria-label', 'RL training loop. A text prompt goes to Inkling-Small, which writes a p5.brush sketch. The sketch is rendered to a PNG. Inkling-Small, as LLM-as-a-Verifier, gives each painting in the group of five a fine-grained score. GRPO centers the scores on the group mean and updates the model, and the updated policy writes the next group.');
 
-  // the brush marks are worked out (in a worker) once the figure is near
-  let near = false;
-  const prefetch = g => { if (!RM && near) GROUPS[g].imgs.forEach((src, i) => Painter.prefetch(src, slots[i].cv, 320)) };
-  function fill(g) {
-    const grp = GROUPS[g], m = grp.r.reduce((a, b) => a + b) / 5, adv = grp.r.map(v => v - m), mx = Math.max(...adv.map(Math.abs));
-    prompt.textContent = `“${grp.prompt}”`;
-    slots.forEach(x => {
-      x.img.src = grp.imgs[x.i]; x.img.alt = `Painting ${'ABCDE'[x.i]}: ${grp.prompt}`;
-      const r = grp.r[x.i];
-      [...x.dist.children].forEach((b, k) => { const u = (k + .5) / 12; const v = Math.exp(-((u - r) ** 2) / (2 * .085 * .085)); b.style.setProperty('--h', (v < .05 ? 0 : v).toFixed(3)) });
-      x.score.textContent = r.toFixed(2);
-      const a = adv[x.i]; x.bar.className = 'bar ' + (a >= 0 ? 'up' : 'dn'); x.bar.style.setProperty('--d', x.i * 80 + 'ms'); x.bar._f = Math.abs(a) / mx;
+  /* ---------------- content for a group ---------------- */
+  const esc = t => t.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const hl = t => esc(t).replace(/"[^"]*"|\b(?:function|let|for|const)\b|\b\d+(?:\.\d+)?\b/g, m => `<span class="${m[0] === '"' ? 'str' : /^\d/.test(m) ? 'num' : 'kw'}">${m}</span>`);
+  const codeOf = c => c.lines || (c.lines = fetch(c.file).then(r => r.ok ? r.text() : Promise.reject()).then(t => t.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l.trim() && !l.trim().startsWith('//')))
+    .catch(() => ['brush.pick("pen");', 'brush.fill("#d98b6a", 160);', 'brush.bleed(0.2, "in");', 'brush.polygon([[0, -60], [50, 40], [-50, 40]]);']));
+  let ci = 0, cyc = CYC[0], code = [], codeLen = 0, lineEls = [], typed = -1, LH = 14, visLines = 8;
+  function fill(c) {
+    cyc = c;
+    qTxt.textContent = ''; typed = -1;
+    codeIn.textContent = ''; lineEls = []; codeIn.style.transform = '';
+    codeOf(c).then(L => { if (cyc === c) { code = L; codeLen = L.reduce((a, l) => a + l.length + 1, 0) } });
+    rImg.src = c.imgs[0]; rImg.alt = `A painting of ${c.prompt}`;
+    if (cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    rows.forEach((r, i) => {
+      r.im.src = c.imgs[i]; r.im.alt = `Painting ${'ABCDE'[i]}`;
+      const v = c.r[i];
+      r.bars.forEach((b, k) => { const u = (k + .5) / NB, g = Math.exp(-((u - v) ** 2) / (2 * .085 * .085)); b.style.setProperty('--h', (g < .06 ? 0 : g).toFixed(3)) });
+      r.sc.textContent = v.toFixed(2);
     });
-    sizeBars(); prefetch(g);
+    placeAdv();
   }
-  function sizeBars() { const half = (slots[0].adv.getBoundingClientRect().height || 60) / 2 - 3; slots.forEach(x => x.bar.style.height = Math.max(2, x.bar._f * half) + 'px') }
-
-  /* ---- render: paint the five; each strip's lines light up with the part of the painting they stand for ---- */
-  const setBars = (x, k) => { x._k = k; x.bars.forEach((b, j) => { b.classList.toggle('run', j < k); b.classList.toggle('on', j === k) }) };
-  function clearPaint() {
-    slots.forEach(x => { if (x.job) { x.job.cancel(false); x.job = null } x.sq.classList.remove('paper', 'done'); x.cv && x.cv.getContext('2d').clearRect(0, 0, x.cv.width, x.cv.height); setBars(x, -1) });
-  }
-  function finishPaint() {
-    slots.forEach(x => { if (x.job) { x.job.cancel(true); x.job = null } x.sq.classList.remove('paper'); x.sq.classList.add('done'); setBars(x, LINES) });
-  }
-  function startPaint() {
-    clearPaint();
-    const id = ++run, grp = GROUPS[gi];
-    const jobs = slots.map(x => {
-      x.sq.classList.add('paper');
-      const job = x.job = Painter.paint(x.cv, grp.imgs[x.i], { from: 'blank', max: 320, speed: SPEED, delay: .3 + x.i * STAGGER, onFrame: t => lines(x, job, t) });
-      return job.done.then(() => { if (x.job === job) { x.job = null; x.sq.classList.add('done'); x.sq.classList.remove('paper'); setBars(x, LINES) } });
+  // GRPO box: dot heights from the scores, the mean in the middle, bars from the mean to each dot
+  function placeAdv() {
+    const H = adv.clientHeight || 100, pad = 6, mx = Math.max(...cyc.adv.map(Math.abs)) || 1;
+    cols.forEach((c, i) => {
+      const a = cyc.adv[i], y = H / 2 - a / mx * (H / 2 - pad);
+      c.dot.style.top = y + 'px';
+      c.bar.className = 'bar ' + (a >= 0 ? 'up' : 'dn');
+      c.bar.style.top = Math.min(y, H / 2) + 'px'; c.bar.style.height = Math.max(1.5, Math.abs(H / 2 - y)) + 'px';
     });
-    // when all five are painted, the loop moves on (if it is playing)
-    Promise.all(jobs).then(() => { if (id === run && st === 2) schedule(650) });
   }
-  // the strip's current line: the group being painted now; a group with two lines splits its time between them
-  function lines(x, job, t) {
-    const G = job.groups;
-    if (!G.length) { const k = job.total ? Math.min(LINES, Math.floor(t / job.total * LINES)) : -1; if (k !== x._k) setBars(x, k); return } // a real sketch: by time
-    const byName = {}; G.forEach(g => { byName[g.name] = g });
-    const names = ['paper', 'washes', 'broad strokes', 'strokes', 'details'];
-    let k = -1;
-    for (let j = 0; j < LINES; j++) {
-      const g = byName[names[LINE_G[j]]]; if (!g) continue;
-      const same = LINE_G.filter(v => v === LINE_G[j]).length, part = LINE_G.slice(0, j).filter(v => v === LINE_G[j]).length;
-      if (t >= g.t0 + (g.t1 - g.t0) * part / same) k = j;
+  // the sketch, typed up to n characters; the view keeps the line being written in sight
+  function typeCode(n) {
+    if (!code.length || n === typed) return;
+    typed = n;
+    let left = n, li = 0;
+    for (; li < code.length; li++) {
+      const full = code[li].length + 1;
+      if (!lineEls[li]) { if (left <= 0) break; lineEls[li] = codeIn.appendChild(h('div', { class: 'ln' })); lineEls[li]._n = -1 }
+      const k = Math.min(code[li].length, left), el = lineEls[li];
+      if (el._n !== k) {
+        if (k >= code[li].length) el.innerHTML = hl(code[li]) || ' ';
+        else el.textContent = code[li].slice(0, k);
+        el._n = k;
+      }
+      left -= full; if (left < 0) { li++; break }
     }
-    if (t >= job.total - .45) k = LINES; // settling: every line has run
-    if (k !== x._k) setBars(x, k);
+    const cur = Math.max(0, Math.min(code.length, li) - 1);
+    lineEls.forEach((e, k) => e.classList.toggle('cur', k === cur));
+    if (lineEls[cur] && codeCaret.parentNode !== lineEls[cur]) lineEls[cur].appendChild(codeCaret);
+    const off = Math.max(0, cur + 1 - visLines) * LH;
+    codeIn.style.transform = `translateY(${-off}px)`;
+  }
+  function measure() {
+    const cs = getComputedStyle(codeIn), box = codeIn.parentNode;
+    LH = parseFloat(cs.lineHeight) || 14;
+    visLines = Math.max(3, Math.floor((box.clientHeight - parseFloat(getComputedStyle(box).paddingTop) * 2) / LH));
   }
 
+  /* ---------------- the loop path ---------------- */
+  let pathLen = 0;
   function layout() {
-    // rail wire: base line through the stage dots, a progress line, and the loop from Update back to Code
-    const rb = railWrap.getBoundingClientRect(), dots = items.map(li => { const b = li.firstChild.getBoundingClientRect(); return [b.left - rb.left + b.width / 2, b.top - rb.top + 4.5] });
-    const y = dots[0][1], x0 = dots[0][0], x5 = dots[5][0], x1 = dots[1][0];
-    wire.setAttribute('viewBox', `0 0 ${rb.width} ${rb.height}`);
-    wire.innerHTML = '';
-    wire.append(s('line', { class: 'base', x1: x0, x2: x5, y1: y, y2: y }));
-    const prog = s('line', { class: 'prog', x1: x0, x2: x5, y1: y, y2: y, 'stroke-dasharray': x5 - x0, 'stroke-dashoffset': x5 - x0 });
-    wire.append(prog);
-    const top = y - 19;
-    wire.append(s('path', { class: 'loop', d: `M${x5} ${y - 7}V${top + 6}Q${x5} ${top} ${x5 - 6} ${top}H${x1 + 6}Q${x1} ${top} ${x1} ${top + 6}V${y - 10}` }),
-      s('path', { class: 'loop-head', d: `M${x1 - 3.5} ${y - 12}L${x1 + 3.5} ${y - 12}L${x1} ${y - 7}z` }));
-    wire._prog = prog; wire._len = x5 - x0;
-    // pairwise arcs: drawn in the band above the paintings
-    const bb = body.getBoundingClientRect(), centers = slots.map(x => { const b = x.el.getBoundingClientRect(); return b.left - bb.left + b.width / 2 });
-    const sq = slots[0].sq.getBoundingClientRect(), y0 = sq.top - bb.top - 4, span = centers[4] - centers[0];
-    arcs.setAttribute('viewBox', `0 0 ${bb.width} ${Math.max(1, y0 + 2)}`); arcs.setAttribute('width', bb.width); arcs.setAttribute('height', Math.max(1, y0 + 2));
-    arcs.innerHTML = ''; let n = 0;
-    for (let a = 0; a < 5; a++) for (let b = a + 1; b < 5; b++) {
-      const xa = centers[a], xb = centers[b], pk = y0 - (6 + (xb - xa) / span * (y0 - 10)) * 2; // quadratic peak sits at half the control height
-      const p = s('path', { d: `M${xa} ${y0}Q${(xa + xb) / 2} ${pk} ${xb} ${y0}` }); arcs.append(p);
-      const len = p.getTotalLength(); p.style.strokeDasharray = len; p.style.setProperty('--len', len); p.style.setProperty('--d', n++ * 85 + 'ms');
+    measure(); placeAdv();
+    const wb = wrap.getBoundingClientRect(), rb = el => el.getBoundingClientRect();
+    const bC = rb(boxes.code), bG = rb(boxes.grpo), vert = bG.top > bC.bottom + 4;
+    loop.setAttribute('viewBox', `0 0 ${wb.width} ${wb.height}`); loop.setAttribute('width', wb.width); loop.setAttribute('height', wb.height);
+    let d, hd, lx, ly;
+    if (!vert) {
+      // under the captions: down from GRPO, back along the bottom, up into Inkling-Small
+      const caps = [...wrap.querySelectorAll('.fx-pp-c')].map(c => rb(c).bottom - wb.top), yT = Math.max(...caps) + 10, yB = wb.height - 9;
+      const x1 = bC.left - wb.left + bC.width / 2, x2 = bG.left - wb.left + bG.width / 2;
+      d = `M${x2} ${yT}V${yB - 6}Q${x2} ${yB} ${x2 - 6} ${yB}H${x1 + 6}Q${x1} ${yB} ${x1} ${yB - 6}V${yT + 8}`;
+      hd = `M${x1 - 4.5} ${yT + 8.5}L${x1 + 4.5} ${yT + 8.5}L${x1} ${yT + 1}z`;
+      lx = (x1 + x2) / 2; ly = yB;
+      loopL.classList.remove('vert');
+    } else {
+      // phones: out of GRPO's right side, up the gutter, into Inkling-Small's right side
+      const xg = wb.width - 10, y1 = bG.top - wb.top + bG.height / 2, y2 = bC.top - wb.top + bC.height / 2, x0 = bG.right - wb.left + 4, x1 = bC.right - wb.left + 2;
+      d = `M${x0} ${y1}H${xg - 6}Q${xg} ${y1} ${xg} ${y1 - 6}V${y2 + 6}Q${xg} ${y2} ${xg - 6} ${y2}H${x1 + 8}`;
+      hd = `M${x1 + 8.5} ${y2 - 4.5}L${x1 + 8.5} ${y2 + 4.5}L${x1 + 1} ${y2}z`;
+      lx = xg; ly = (y1 + y2) / 2;
+      loopL.classList.add('vert');
     }
-    // mean line through the middle of the advantage lane
-    const ab = slots[0].adv.getBoundingClientRect(); mean.style.top = ab.top - bb.top + ab.height / 2 + 'px';
-    sizeBars(); stageClasses(st, true);
+    track.setAttribute('d', d); head.setAttribute('d', hd);
+    loopL.style.left = lx + 'px'; loopL.style.top = ly + 'px';
+    pathLen = track.getTotalLength();
   }
 
-  function stageClasses(i, instant) {
-    for (let k = 0; k < 6; k++) root.classList.toggle('st' + k, k === i);
-    items.forEach((li, k) => { li.classList.toggle('on', k === i); li.classList.toggle('past', k < i) });
-    if (wire._prog) { wire._prog.style.transition = instant ? 'none' : ''; wire._prog.setAttribute('stroke-dashoffset', wire._len * (1 - i / 5)) }
-    now.textContent = STAGES[i][0] + (STAGES[i][1] ? ' · ' + STAGES[i][1] : '');
+  /* ---------------- the cycle ----------------
+     phases: [name, seconds]; 'hand' passes from box k to the next; Render lasts as long as the painting takes. */
+  const PHASES = [['prompt', 1.9], ['hand', .45, 0], ['code', 3.2], ['hand', .45, 1], ['render', 0], ['hand', .85, 2], ['verify', 3.2], ['hand', .45, 3], ['grpo', 3.0], ['loop', 2.3], ['clear', .6]];
+  let pi = -1, t = 0, renderEnd = Infinity, job = null, vis = false, raf = 0, last = 0, started = false;
+  const on = (k, v) => root.classList.toggle(k, v);
+  const stage = i => sts.forEach((el, k) => el.classList.toggle('on', k === i));
+  const seen = i => sts[i].classList.add('seen');
+  function enter(i) {
+    pi = i % PHASES.length; t = 0;
+    const [name, , k] = PHASES[pi];
+    sts.forEach(el => el.classList.remove('go'));
+    if (name === 'prompt') {
+      if (started) { ci = (ci + 1) % CYC.length; fill(CYC[ci]) }
+      started = true;
+      ['clr', 'looping', 'upd', 'pkt', 'v0', 'v1', 'v2', 'v3', 'g1', 'g2', 'g3', 'g4'].forEach(c => on(c, false));
+      sts.forEach(el => el.classList.remove('seen'));
+      stage(0); seen(0);
+    } else if (name === 'hand') {
+      stage(-1); sts[k].classList.add('go');
+      if (k === 2) fly();
+    } else if (name === 'code') { stage(1); seen(1); measure() }
+    else if (name === 'render') { stage(2); seen(2); startPaint() }
+    else if (name === 'verify') { stage(3); seen(3); on('v1', true) }
+    else if (name === 'grpo') { stage(4); seen(4); placeAdv(); on('g1', true) }
+    else if (name === 'loop') { stage(-1); on('looping', true) }
+    else if (name === 'clear') { on('looping', false); on('upd', false); on('clr', true) }
   }
-  function show(i, instant) {
-    st = i; stageClasses(i, instant);
-    if (!RM) {
-      if (i < 2) clearPaint();
-      else if (i > 2) finishPaint();
-    } else slots.forEach(x => setBars(x, LINES));
-    if (i === 3 && !instant && !RM) { root.classList.remove('arcs'); void root.offsetWidth; root.classList.add('arcs') }
-    else if (i !== 3) root.classList.remove('arcs');
-    if (i === 4) prefetch((gi + 1) % GROUPS.length);
-  }
-  function next() {
-    if (st >= 5) { // fade the finished group out, bring in the next one at the prompt
-      body.classList.add('out');
-      timer = setTimeout(() => { gi = (gi + 1) % GROUPS.length; show(0, true); fill(gi); body.classList.remove('out'); schedule(DUR[0]) }, 520);
-      return;
+  function update() {
+    const [name] = PHASES[pi];
+    if (name === 'prompt') {
+      const n = Math.min(cyc.prompt.length, Math.floor(Math.max(0, t - .15) * 30));
+      qTxt.textContent = '“' + cyc.prompt.slice(0, n) + (n >= cyc.prompt.length ? '”' : '');
+    } else if (name === 'code') typeCode(Math.floor(Math.min(1, t / 2.75) * codeLen));
+    else if (name === 'verify') { on('v2', t > .45); on('v3', t > 1.25) }
+    else if (name === 'grpo') { on('g2', t > .55); on('g3', t > 1.15); on('g4', t > 2.2) }
+    else if (name === 'loop') {
+      const p = Math.min(1, Math.max(0, (t - .25) / 1.45)), e = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      if (pathLen) { const pt = track.getPointAtLength(e * pathLen); pkt.setAttribute('cx', pt.x); pkt.setAttribute('cy', pt.y) }
+      on('pkt', p > 0 && p < 1); on('upd', t > 1.7);
     }
-    show(st + 1);
-    if (st === 2) startPaint(); else schedule(DUR[st]);
   }
-  function schedule(delay) {
-    clearTimeout(timer);
-    if (!playing || !visible) return;
-    if (st === 2 && slots.some(x => x.job)) return; // still painting: the paint's own promise moves on
-    timer = setTimeout(next, delay);
+  function dur() { const [name, d] = PHASES[pi]; return name === 'render' ? renderEnd : name === 'code' && !codeLen ? Infinity : d }
+  function frame(ts) {
+    raf = 0; if (!playing || !vis) return;
+    const dt = last ? Math.min(.05, (ts - last) / 1000) : 0; last = ts;
+    t += dt;
+    let guard = 0;
+    while (t >= dur() && guard++ < 20) { const over = t - dur(); enter(pi + 1); t = over }
+    update();
+    raf = requestAnimationFrame(frame);
   }
-  function hold(i) {
-    playing = false; btn.set(false); clearTimeout(timer);
-    show(i);
-    if (i === 2 && !RM) startPaint();
+  function kick() { if (!raf && playing && vis) { last = 0; raf = requestAnimationFrame(frame) } }
+  function setPlaying(v) {
+    playing = v; btn.set(v); on('paused', !v);
+    if (job) v ? job.resume() : job.pause();
+    kick();
   }
 
-  fill(0);
-  if (!RM) { const pio = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pio.disconnect(); near = true; prefetch(gi) } }, { rootMargin: '700px 0px' }); pio.observe(root) }
+  // Render: a blank canvas, then the painting paints itself; the phase ends a beat after it is done
+  function startPaint() {
+    renderEnd = Infinity;
+    if (job) { job.cancel(false); job = null }
+    rframe.classList.remove('done');
+    const my = job = Painter.paint(cv, cyc.imgs[0], { from: 'blank', max: 320, speed: 1.15, delay: .45 });
+    if (!playing) my.pause();
+    my.done.then(ok => {
+      if (job !== my) return;
+      job = null;
+      if (!ok) rframe.classList.add('done'); // no plan: the picture itself
+      renderEnd = t + .4;
+    });
+  }
+  // the finished painting moves from the canvas to the top of the verifier's group
+  function fly() {
+    const wb = wrap.getBoundingClientRect(), a = rframe.getBoundingClientRect(), b = rows[0].im.getBoundingClientRect();
+    const im = h('img', { class: 'fx-pp-fly', src: cyc.imgs[0], alt: '', style: { left: a.left - wb.left + 'px', top: a.top - wb.top + 'px', width: a.width + 'px', height: a.height + 'px' } });
+    wrap.append(im);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      im.style.transform = `translate(${b.left - a.left}px,${b.top - a.top}px) scale(${b.width / a.width})`;
+      im.style.borderRadius = 3 * a.width / b.width + 'px';
+    }));
+    const done = () => { im.remove(); on('v0', true) };
+    im.addEventListener('transitionend', e => { if (e.propertyName === 'transform') done() }, { once: false });
+    setTimeout(() => im.isConnected && done(), 1400);
+  }
+
+  /* ---------------- start ---------------- */
+  fill(CYC[0]);
   responsive(root, layout);
   window.addEventListener('load', layout);
-  if (RM) { show(4, true); return }
-  show(0, true);
+  if (document.fonts) document.fonts.ready.then(layout);
+  if (RM) {
+    // the filled-in pipeline
+    codeOf(cyc).then(L => { code = L; codeLen = L.reduce((a, l) => a + l.length + 1, 0); typed = -1; codeIn.textContent = ''; lineEls = []; typeCode(codeLen); codeIn.style.transform = ''; lineEls.forEach(e => e.classList.remove('cur')); codeCaret.remove() });
+    qTxt.textContent = '“' + cyc.prompt + '”';
+    rframe.classList.add('done');
+    sts.forEach(el => el.classList.add('seen'));
+    ['v0', 'v1', 'v2', 'v3', 'g1', 'g2', 'g3'].forEach(c => on(c, true));
+    return;
+  }
+  // the brush marks for both groups' first paintings are worked out (in a worker) once the figure is near
+  const pio = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pio.disconnect(); CYC.forEach(c => { Painter.prefetch(c.imgs[0], cv, 320); codeOf(c) }) } }, { rootMargin: '700px 0px' });
+  pio.observe(root);
   watch(root, v => {
-    visible = v;
-    if (!v) { clearTimeout(timer); return }
-    if (!started) { started = true; show(0, true) }
-    schedule(st === 0 ? 700 : st === 2 ? 650 : DUR[st]);
-  }, .35);
+    vis = v;
+    if (v && pi < 0) enter(0);
+    if (!v) { if (raf) cancelAnimationFrame(raf); raf = 0 }
+    kick();
+  }, .3);
 })();

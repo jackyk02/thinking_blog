@@ -341,8 +341,8 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
       <p>Given a text prompt (e.g., “a pear in watercolor”), Inkling-Small generates a JavaScript sketch using the p5.brush library. The sketch is executed in a sandboxed Puppeteer environment to produce a rendered PNG image. The resulting painting is then evaluated by the same model, Inkling-Small, through LLM-as-a-Verifier, which assigns fine-grained scores to assess its visual quality and alignment with the input prompt. These scores are normalized within each group and used to optimize the model via GRPO.</p>
 
       <figure class="fx fx-wide" id="fig-pipeline">
-        <div class="fx-pl" id="fx-pipeline"></div>
-        <figcaption>Inkling-Small is both the painter and the verifier. Real paintings from one group at step 250; scores are placeholders.</figcaption>
+        <div class="fx-pipe" id="fx-pipeline"></div>
+        <figcaption>Inkling-Small is both the painter and the verifier. Real paintings from two groups at step 250; the code is an example sketch and the scores are placeholders.</figcaption>
       </figure>
 
       <p>As a baseline, we replace the verifier with the standard LLM-as-a-Judge, which scores each painting separately on a discrete scale. Everything else in the pipeline stays the same. The fine-grained verifier score improves sample efficiency by ≈1.5× on painting.</p>
