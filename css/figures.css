@@ -1,0 +1,306 @@
+/* Figures (branch sn/figures).
+   Shared tokens + one block per figure. Colours come from the page tokens (--fg*, --rule, --panel, --code-bg);
+   green = LLM-as-a-Verifier (the better reward), grey = LLM-as-a-Judge, amber = anything that is not a measured number.
+   --fx-ver: #1F7A4D on light (5.3:1 on --bg, 4.8:1 on --panel), #4FAE80 on dark (6.6:1 on --bg, 5.9:1 on --panel).
+   The tie-rate chart in index.html reads the same tokens. */
+
+:root{
+  --fx-ver:#1F7A4D; --fx-jud:#4D4F53; --fx-ph:#A65F00;
+  --fx-mono:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Consolas,'Liberation Mono',monospace;
+  --fx-ease:cubic-bezier(.22,1,.36,1); --fx-ease-io:cubic-bezier(.65,0,.35,1);
+  --fx-ring:color-mix(in srgb,var(--fg) 8%,transparent);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fx-ver:#4FAE80;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}}
+:root[data-theme="dark"]{--fx-ver:#4FAE80;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}
+
+/* ---------- shared ---------- */
+figure.fx{margin:2.6rem 0;position:relative;font-family:var(--font-sans)}
+figure.fx>figcaption{margin-top:1rem}
+@media (min-width:1180px){figure.fx-wide{margin-right:-180px}}
+.fx-k{font-family:var(--fx-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4);line-height:1.2}
+.fx-paint{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:4px;background:var(--panel);box-shadow:0 0 0 1px var(--fx-ring)}
+.fx svg{display:block;overflow:visible}
+.fx svg text{font-family:var(--fx-mono);font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
+.fx svg .cap{text-transform:uppercase;letter-spacing:.08em}
+.fx svg .grid{stroke:var(--rule);stroke-dasharray:2 3}
+.fx svg .axis{stroke:var(--rule)}
+.fx svg .end{font-family:var(--font-sans);font-size:13px;letter-spacing:0;font-weight:500}
+.fx .v{color:var(--fx-ver)}.fx .j{color:var(--fx-jud)}
+.fx svg text.v{fill:var(--fx-ver)}.fx svg text.j{fill:var(--fx-jud)}
+.fx svg .fx-line{fill:none;stroke-width:2.4;stroke-linejoin:round;stroke-linecap:round}
+.fx svg .fx-line.v{stroke:var(--fx-ver)}.fx svg .fx-line.j{stroke:var(--fx-jud)}
+.fx-top{display:flex;align-items:center;justify-content:flex-end;gap:10px 16px;flex-wrap:wrap;margin-bottom:14px;min-height:22px}
+.fx-top.split{justify-content:space-between}
+/* "placeholder data" / "simulated" tag */
+.fx-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--fx-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fx-ph);border:1px dashed color-mix(in srgb,var(--fx-ph) 55%,transparent);border-radius:999px;padding:3px 9px 3px 8px;line-height:1.2;white-space:nowrap}
+.fx-tag::before{content:"";width:5px;height:5px;border-radius:1px;background:var(--fx-ph)}
+/* small round pill buttons, same feel as the cover's controls */
+.fx :focus-visible{outline:2px solid var(--fg3);outline-offset:2px;border-radius:4px}
+.fx-btn{width:24px;height:24px;border-radius:50%;border:0;background:var(--code-bg);color:var(--fg3);display:grid;place-items:center;cursor:pointer;padding:0;flex:0 0 auto}
+.fx-btn svg{width:11px;height:11px}
+.fx-btn:hover{color:var(--fg)}
+/* with a label: a small quiet pill that says what a click will do */
+.fx-btn.fx-btn-l{width:auto;min-width:66px;height:26px;padding:0 11px 0 9px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;font:500 12px/1 var(--font-sans);letter-spacing:.01em}
+.fx-btn.fx-btn-l svg{width:9px;height:9px}
+
+/* painted frames: the image under a canvas that paints it in (js/figures/painter.js); .done shows the image itself */
+.fx-pv{position:relative;border-radius:4px;overflow:hidden;background:var(--panel);box-shadow:0 0 0 1px var(--fx-ring)}
+.fx-pv>.fx-paint,.fx-pv>canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:0;box-shadow:none;display:block}
+.fx-pv>.fx-paint{opacity:0}
+.fx-pv.done>.fx-paint{opacity:1}
+.fx-pv.done>canvas{visibility:hidden}
+
+/* ---------- 1 · paintings on the training curve ---------- */
+.fx-tr{position:relative;touch-action:pan-y;cursor:crosshair;outline:none}
+.fx-tr svg{position:absolute;inset:0;pointer-events:none}
+.fx-tr .col{stroke:var(--rule);stroke-dasharray:2 3}
+.fx-tr-img{position:absolute;opacity:0;transform:translateY(6px);transition:opacity .6s var(--fx-ease),transform .6s var(--fx-ease)}
+.fx-tr-img.in{opacity:1;transform:none}
+.fx-tr.focus .fx-tr-img.in{opacity:.22}
+.fx-tr.focus .fx-tr-img.in.on{opacity:1}
+.fx-tr-lbl{position:absolute;font-family:var(--font-serif);font-style:italic;font-size:15px;line-height:1.25;color:var(--fg1);text-align:right;transform:translateY(-50%);text-wrap:balance;pointer-events:none}
+.fx-tr-lbl.top{transform:none;text-align:left;font-size:13px;color:var(--fg3);white-space:nowrap}
+.fx-tr .hov{opacity:0;transition:opacity .25s}
+.fx-tr.focus .hov{opacity:1}
+.fx-tr .guide{stroke:var(--fg4);stroke-dasharray:3 3}
+.fx-tr .dot-v{fill:var(--fx-ver);stroke:var(--bg);stroke-width:2}.fx-tr .dot-j{fill:var(--fx-jud);stroke:var(--bg);stroke-width:2}
+.fx-tr .val{font-family:var(--font-sans);font-size:12px;letter-spacing:0;font-weight:500;font-variant-numeric:tabular-nums}
+.fx svg .hov text{paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.fx-tr .fade{opacity:0;transition:opacity .5s}
+.fx-tr .fade.in{opacity:1}
+.fx-tr .gap{fill:none;stroke:var(--fg5);stroke-width:1.2}
+
+/* ---------- 2 · the judge's tie, and what the verifier sees ---------- */
+/* two rows of the same four paintings in shared columns; under each, its scale, its distribution and its score */
+.fx-jt{display:grid;grid-template-columns:62px repeat(4,minmax(0,1fr));column-gap:14px;row-gap:22px;align-items:start;outline:none;cursor:default;-webkit-tap-highlight-color:transparent}
+.fx-jt-l{text-align:right;line-height:14px}
+.fx-jt-l.j{color:var(--fx-jud)}.fx-jt-l.v{color:var(--fx-ver)}
+.fx-jt-c{min-width:0}
+.fx-jt-p{width:100%;aspect-ratio:1}
+.fx-jt-c>.fx-jt-p{opacity:0;transform:translateY(8px);transition:opacity .6s var(--fx-ease),transform .7s var(--fx-ease);transition-delay:calc(var(--c) * 70ms)}
+.fx-jt.f1 .fx-jt-c.j>.fx-jt-p,.fx-jt.s1 .fx-jt-c.j>.fx-jt-p,.fx-jt.f2 .fx-jt-c.v>.fx-jt-p,.fx-jt.s2 .fx-jt-c.v>.fx-jt-p{opacity:1;transform:none}
+.fx-jt-h{margin-top:10px;opacity:0;transition:opacity .5s var(--fx-ease)}
+.fx-jt.s1 .fx-jt-c.j .fx-jt-h,.fx-jt.s2 .fx-jt-c.v .fx-jt-h{opacity:1}
+.fx-jt-h .slot{stroke:var(--rule);stroke-width:1.2}
+.fx svg.fx-jt-h text.end{font-size:9.5px;fill:var(--fg5)}
+.fx svg.fx-jt-h text.val{font-family:var(--font-sans);font-size:15px;letter-spacing:0;font-weight:500;font-variant-numeric:tabular-nums}
+.fx-jt-c.j text.val{fill:var(--fx-jud)}.fx-jt-c.v text.val{fill:var(--fx-ver)}
+.fx-jt-h .bar{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);transition:transform .6s var(--fx-ease);transition-delay:var(--d)}
+.fx-jt-c.j .bar{fill:var(--fx-jud)}.fx-jt-c.v .bar{fill:color-mix(in srgb,var(--fx-ver) 80%,transparent)}
+.fx-jt-h .dot{stroke:var(--bg);stroke-width:1.5}
+.fx-jt-c.j .dot{fill:var(--fx-jud)}.fx-jt-c.v .dot{fill:var(--fx-ver)}
+.fx-jt-h .tie{stroke:var(--fx-jud);stroke-width:1;opacity:0;transition:opacity .5s var(--fx-ease) .75s}
+/* judge: everything lands at once, the same in every column */
+.fx-jt.s1 .fx-jt-c.j .bar{transform:none}
+.fx-jt-h .mk{opacity:0;transform:translateX(var(--dx));transition:opacity .45s var(--fx-ease),transform 1.15s var(--fx-ease-io);transition-delay:.5s,0s}
+.fx-jt.s1 .fx-jt-c.j .mk{opacity:1}
+.fx-jt.s1 .fx-jt-h .tie{opacity:.55}
+/* verifier: the dots appear where the judge's are, then slide apart to their own scores as the distributions rise
+   and the scores count up beside them */
+.fx-jt.s2 .fx-jt-c.v .dot{opacity:1;transition-delay:.25s,0s}
+.fx-jt.s3 .fx-jt-c.v .mk{opacity:1;transform:none;transition-delay:var(--d),var(--d)}
+.fx-jt.s3 .fx-jt-c.v .bar{transform:none}
+.fx-jt.reset *{transition:none!important}
+@media (max-width:560px){
+  .fx-jt{grid-template-columns:repeat(4,minmax(0,1fr));column-gap:10px;row-gap:8px}
+  .fx-jt-l{grid-column:1/-1;text-align:left}
+  .fx-jt-l.v{margin-top:14px}
+  .fx svg.fx-jt-h text.val{font-size:13px}
+  .fx-jt-h{margin-top:8px}
+}
+
+/* ---------- 4 · RL pipeline: Jacky's row of boxes, played left to right (js/figures/pipeline.js) ---------- */
+.fx-pp{--bh:168px;--lh:16px;--gap:24px;position:relative;padding-bottom:44px}
+.fx-pp-row{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:.84fr 1.14fr 1fr 1.2fr .84fr;column-gap:var(--gap)}
+.fx-pp-st{position:relative;margin:0;min-width:0;display:flex;flex-direction:column;gap:8px}
+.fx-pp-l{font:600 13px/var(--lh) var(--font-sans);color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .35s}
+.fx-pp-st.on .fx-pp-l{color:var(--fg)}
+.fx-pp-st.v .fx-pp-l{color:var(--fx-ver)}
+.fx-pp-c{font:italic 12.5px/1.3 var(--font-serif);color:var(--fg3)}
+.fx-pp-box{position:relative;height:var(--bh);border-radius:8px;background:var(--code-bg);box-shadow:inset 0 0 0 1px var(--rule);overflow:hidden;container-type:size;transition:box-shadow .35s var(--fx-ease),background-color .35s}
+.fx-pp-st.on .fx-pp-box{box-shadow:inset 0 0 0 1.5px var(--fg);background:var(--bg)}
+.fx-pp-st.v.on .fx-pp-box{box-shadow:inset 0 0 0 1.5px var(--fx-ver)}
+/* the updated policy arrives back at Inkling-Small */
+.fx-pipe.upd .s-code .fx-pp-box{box-shadow:inset 0 0 0 1.5px var(--fg2)}
+/* what a box made stays in it until the next group; between groups everything fades out together */
+.fx-pp-box>*{opacity:0;transition:opacity .45s var(--fx-ease)}
+.fx-pp-st.seen .fx-pp-box>*{opacity:1}
+.fx-pipe.clr .fx-pp-box>*{opacity:0}
+/* chevrons between the boxes; the one being passed along darkens and nudges forward */
+.fx-pp-st:not(:last-child)::after{content:"";position:absolute;right:calc(var(--gap) / -2 - 3px);top:calc(var(--lh) + 8px + var(--bh) / 2);width:7px;height:7px;border-top:1.5px solid var(--fg5);border-right:1.5px solid var(--fg5);transform:translate(-2px,-50%) rotate(45deg);transition:border-color .3s,transform .45s var(--fx-ease)}
+.fx-pp-st.go::after{border-color:var(--fg);transform:translate(1px,-50%) rotate(45deg)}
+.fx-pp-caret{display:inline-block;width:1.5px;height:1.05em;margin-left:1px;vertical-align:-.15em;background:var(--fg);animation:fx-caret 1.05s steps(1) infinite}
+@keyframes fx-caret{50%{opacity:0}}
+/* prompt */
+.fx-pp-q{position:absolute;inset:0;margin:0;padding:0 12px;display:grid;place-items:center;text-align:center;font:italic 14.5px/1.35 var(--font-serif);color:var(--fg1)}
+.fx-pp-q>span{text-wrap:balance}
+.fx-pp-q .fx-pp-caret{display:none}
+.s-prompt.on .fx-pp-q .fx-pp-caret{display:inline-block}
+/* Inkling-Small: the sketch streams in */
+.fx-pp-code{position:absolute;inset:0;padding:11px 0 11px 11px;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 8px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 12px,#000 calc(100% - 8px),transparent 100%)}
+.fx-pp-in{font:9.5px/1.55 var(--fx-mono);color:var(--fg2);white-space:pre;transition:transform .22s var(--fx-ease)}
+.fx-pp-in .ln{padding-right:6px;border-radius:2px}
+.fx-pp-in .ln.cur{background:color-mix(in srgb,var(--fg) 6%,transparent)}
+.fx-pp-in .str{color:var(--fg4)}.fx-pp-in .num{color:var(--fg3)}.fx-pp-in .kw{color:var(--fg);font-weight:600}
+.fx-pp-in .fx-pp-caret{height:1.1em}
+.fx-pp-st:not(.on) .fx-pp-in .fx-pp-caret{display:none}
+.fx-pp-st:not(.on) .fx-pp-in .ln.cur{background:none}
+/* Render: a blank white canvas the painting paints itself on */
+.s-render .fx-pp-box{display:flex;align-items:center;justify-content:center}
+.fx-pp-frame{position:relative;width:min(100cqw - 24px,100cqh - 24px);aspect-ratio:1;border-radius:3px;background:#fff;box-shadow:0 0 0 1px var(--fx-ring);overflow:hidden}
+.fx-pp-frame>canvas,.fx-pp-frame>img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fx-pp-rimg{opacity:0}
+.fx-pp-frame.done>.fx-pp-rimg{opacity:1}
+.fx-pp-frame.done>canvas{visibility:hidden}
+.fx-pp-fly{position:absolute;z-index:3;transform-origin:0 0;border-radius:3px;box-shadow:0 1px 6px rgba(0,0,0,.12);pointer-events:none;transition:transform .75s var(--fx-ease-io),border-radius .75s var(--fx-ease-io)}
+/* Verifier: the group, one row each: painting, its score distribution, its expected score */
+.fx-pp-rows{--rh:calc((100cqh - 20px - 16px) / 5);list-style:none;margin:0;padding:10px 12px;position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between}
+.fx-pp-rows li{margin:0;display:grid;grid-template-columns:var(--rh) minmax(0,1fr) auto;align-items:center;column-gap:9px;height:var(--rh)}
+.fx-pp-rows .fx-paint{width:var(--rh);height:var(--rh);border-radius:3px;opacity:0;transform:translateX(-4px);transition:opacity .4s var(--fx-ease),transform .5s var(--fx-ease);transition-delay:calc(var(--i) * 90ms)}
+.fx-pipe.v0 .fx-pp-rows li:first-child .fx-paint{opacity:1;transform:none;transition:none}
+.fx-pipe.v1 .fx-pp-rows .fx-paint{opacity:1;transform:none}
+.fx-pp-dist{display:flex;align-items:flex-end;gap:1.5px;height:70%}
+.fx-pp-dist i{flex:1;max-width:5px;height:max(1.5px,calc(var(--h) * 100%));border-radius:1px 1px 0 0;background:color-mix(in srgb,var(--fx-ver) 72%,transparent);transform-origin:50% 100%;transform:scaleY(0);transition:transform .5s var(--fx-ease);transition-delay:var(--d)}
+.fx-pipe.v2 .fx-pp-dist i{transform:none}
+.fx-pp-rows b{font:500 11.5px/1 var(--font-sans);color:var(--fx-ver);font-variant-numeric:tabular-nums;opacity:0;transition:opacity .4s;transition-delay:calc(var(--i) * 110ms)}
+.fx-pipe.v3 .fx-pp-rows b{opacity:1}
+/* GRPO: the scores as dots, the group mean, then each advantage as a bar from the mean */
+.fx-pp-adv{position:absolute;inset:16px 14px;display:flex;justify-content:space-around}
+.fx-pp-adv .col{position:relative;width:11px;height:100%}
+.fx-pp-mean{position:absolute;left:-4px;right:-4px;top:50%;height:0;border-top:1.2px dashed var(--fg4);transform:scaleX(0);transition:transform .6s var(--fx-ease)}
+.fx-pipe.g2 .fx-pp-mean{transform:none}
+.fx-pp-adv .dot{position:absolute;left:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:var(--fg3);opacity:0;transform:scale(.4);transition:opacity .35s,transform .45s var(--fx-ease);transition-delay:calc(var(--i) * 70ms)}
+.fx-pipe.g1 .fx-pp-adv .dot{opacity:1;transform:none}
+.fx-pipe.g3 .fx-pp-adv .dot{opacity:0;transition-delay:.35s}
+.fx-pp-adv .bar{position:absolute;left:0;right:0;border-radius:2px;transform:scaleY(0);transition:transform .6s var(--fx-ease);transition-delay:calc(var(--i) * 70ms)}
+.fx-pp-adv .bar.up{background:var(--fx-ver);transform-origin:50% 100%}
+.fx-pp-adv .bar.dn{background:var(--fx-jud);transform-origin:50% 0}
+.fx-pipe.g3 .fx-pp-adv .bar{transform:none}
+.fx-pipe.g4 .fx-pp-adv .bar{animation:fx-pulse 1s var(--fx-ease-io)}
+@keyframes fx-pulse{50%{opacity:.45}}
+/* the loop back: dashed, lit while the updated policy travels along it */
+.fx-pp-loop{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.fx-pp-loop .track{fill:none;stroke:var(--fg5);stroke-width:1.4;stroke-dasharray:5 5;transition:stroke .4s}
+.fx-pp-loop .head{fill:var(--fg5);transition:fill .4s}
+.fx-pp-loop .pkt{fill:var(--fg);opacity:0;transition:opacity .25s}
+.fx-pipe.looping .fx-pp-loop .track{stroke:var(--fg2);animation:fx-flow .6s linear infinite}
+.fx-pipe.looping .fx-pp-loop .head{fill:var(--fg2)}
+.fx-pipe.pkt .fx-pp-loop .pkt{opacity:1}
+@keyframes fx-flow{to{stroke-dashoffset:-20}}
+.fx-pp-loopl{position:absolute;transform:translate(-50%,-50%);font:10px/1 var(--fx-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg4);background:var(--bg);padding:2px 7px;white-space:nowrap;transition:color .4s}
+.fx-pp-loopl.vert{writing-mode:vertical-rl;transform:translate(-50%,-50%) rotate(180deg);padding:7px 2px}
+.fx-pipe.looping .fx-pp-loopl{color:var(--fg)}
+.fx-pipe.paused *{animation-play-state:paused!important}
+/* phones: the boxes stack, label and caption beside each, arrows down, the loop up the right side */
+@media (max-width:700px){
+  .fx-pp{--gap:26px;padding:0 30px 0 0}
+  .fx-pp-row{grid-template-columns:minmax(0,1fr);row-gap:var(--gap)}
+  .fx-pp-st{display:grid;grid-template-columns:minmax(0,1fr) min(196px,58%);grid-template-rows:auto auto;column-gap:12px;row-gap:3px;align-items:center}
+  .fx-pp-l{grid-column:1;grid-row:1;align-self:end;white-space:normal;font-size:12.5px}
+  .fx-pp-c{grid-column:1;grid-row:2;align-self:start;font-size:12px}
+  .fx-pp-box{grid-column:2;grid-row:1/3}
+  .s-prompt{--bh:66px}.s-code{--bh:112px}.s-render{--bh:150px}.s-verify{--bh:150px}.s-grpo{--bh:92px}
+  .fx-pp-st:not(:last-child)::after{right:calc(min(196px,58%) / 2 - 4px);top:auto;bottom:calc(var(--gap) / -2 - 4px);transform:translate(0,-50%) rotate(135deg)}
+  .fx-pp-st.go::after{transform:translate(0,-20%) rotate(135deg)}
+  .fx-pp-q{font-size:13.5px}
+  .fx-pp-in{font-size:9px}
+  .fx-pp-adv{inset:12px 14px}
+}
+@media (prefers-reduced-motion:reduce){.fx-pp-caret{display:none!important}}
+
+/* ---------- 5 · ties give GRPO nothing to learn from ---------- */
+.fx-gr{display:grid;grid-template-columns:76px minmax(0,1fr);column-gap:14px;row-gap:8px;align-items:center}
+.fx-gr .imgs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;grid-column:2}
+.fx-gr .lane-l{grid-column:1;text-align:right}
+.fx-gr .lane{grid-column:2;position:relative}
+.fx-gr .lane svg{width:100%;height:auto}
+.fx-gr .mean{stroke:var(--fg5);stroke-dasharray:4 4;stroke-dashoffset:0}
+.fx-gr .pt{opacity:0;transform:translateY(-10px);transition:opacity .5s var(--fx-ease),transform .6s var(--fx-ease);transition-delay:var(--d)}
+.fx-gr.s1 .pt{opacity:1;transform:none}
+.fx-gr .mean{opacity:0;transition:opacity .6s}
+.fx-gr.s2 .mean{opacity:1}
+.fx-gr .bar{transform-box:fill-box;transform:scaleY(0);transition:transform .7s var(--fx-ease);transition-delay:var(--d)}
+.fx-gr .bar.up{transform-origin:50% 100%}.fx-gr .bar.dn{transform-origin:50% 0}
+.fx-gr.s3 .bar{transform:none}
+.fx-gr .sc{font-family:var(--fx-mono);font-size:11px;fill:var(--fg3);font-variant-numeric:tabular-nums;opacity:0;transition:opacity .5s .2s}
+.fx-gr.s1 .sc{opacity:1}
+.fx-gr .flat{stroke:var(--fx-jud);stroke-width:2;stroke-linecap:round;opacity:0;transition:opacity .6s}
+.fx-gr.s3 .flat{opacity:.9}
+@media (max-width:560px){
+  .fx-gr{grid-template-columns:minmax(0,1fr);row-gap:4px}
+  .fx-gr .imgs,.fx-gr .lane{grid-column:1}
+  .fx-gr .imgs{gap:7px}
+  .fx-gr .lane-l{grid-column:1;text-align:left;margin-top:8px}
+}
+
+/* ---------- 6 · more paintings: Jacky's grid; every cell paints itself in, column by column (js/figures/gallery.js) ---------- */
+.fx-gg{--lab:138px;--gap:12px}
+.fx-gg-axis,.fx-gg-row{display:grid;grid-template-columns:var(--lab) minmax(0,1fr);column-gap:var(--gap);align-items:center}
+.fx-gg-axis{margin-bottom:8px}
+.fx-gg-steps{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap);padding-bottom:9px}
+/* the steps: a click finishes that column */
+.fx-gg-steps>*{all:unset;box-sizing:border-box;justify-self:center;font:10.5px/1 var(--fx-mono);letter-spacing:.08em;color:var(--fg4);padding:5px 9px;border-radius:999px;transition:color .3s,background-color .3s}
+.fx-gg-steps>button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.fx-gg-steps>button:hover,.fx-gg-steps>button:focus-visible{color:var(--fg);background:var(--code-bg)}
+.fx-gg-steps>button.full{color:var(--fg2)}
+.fx .fx-gg-steps>button:focus-visible{outline:none;box-shadow:0 0 0 1.5px var(--fg3)}
+/* a thin arrow under the steps: training moves left to right */
+.fx-gg-steps::after{content:"";position:absolute;left:12.5%;right:10.5%;bottom:0;height:1px;background:var(--fg5)}
+.fx-gg-steps::before{content:"";position:absolute;right:10.5%;bottom:-3px;border:3.5px solid transparent;border-left:6px solid var(--fg5);border-right:0;transform:translateX(100%)}
+.fx-gg-row{padding:var(--gap) 0}
+.fx-gg-p{font:italic 17px/1.3 var(--font-serif);color:var(--fg);text-wrap:balance}
+.fx-gg-cells{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap)}
+/* a cell: blank paper, then the canvas it paints on, then the image itself */
+.fx-gg-cell{position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;background:#f4f1e8;box-shadow:0 0 0 1px var(--fx-ring);cursor:pointer;transition:box-shadow .3s var(--fx-ease);-webkit-tap-highlight-color:transparent}
+.fx-gg-cell>.fx-paint,.fx-gg-cell>canvas{position:absolute;inset:0;width:100%;height:100%;border-radius:0;box-shadow:none;display:block;background:none}
+.fx-gg-cell>.fx-paint,.fx-gg-cell>canvas{opacity:0}
+.fx-gg-cell>.fx-paint{transition:opacity .4s var(--fx-ease)}
+.fx-gg-cell.painting>canvas{opacity:1}
+.fx-gg-cell.done{cursor:default}
+.fx-gg-cell.done>.fx-paint{opacity:1}
+.fx-gg-cell.done>canvas{display:none}
+.fx-gg-cell:not(.done):hover,
+.fx-gg[data-hk="0"] .fx-gg-cell[data-k="0"]:not(.done),.fx-gg[data-hk="1"] .fx-gg-cell[data-k="1"]:not(.done),
+.fx-gg[data-hk="2"] .fx-gg-cell[data-k="2"]:not(.done),.fx-gg[data-hk="3"] .fx-gg-cell[data-k="3"]:not(.done){box-shadow:0 0 0 1.5px var(--fg5)}
+@media (max-width:620px){
+  .fx-gg{--gap:8px}
+  .fx-gg-axis,.fx-gg-row{grid-template-columns:minmax(0,1fr)}
+  .fx-gg-axis>.fx-k{display:none}
+  .fx-gg-row{padding:9px 0}
+  .fx-gg-p{font-size:15px;margin-bottom:7px}
+}
+
+/* the sample-efficiency table, quieter: no row rules, scorer colours on the two step columns */
+#tbl-sample-efficiency th{font-family:var(--fx-mono);font-weight:400;font-size:10.5px;letter-spacing:.08em;color:var(--fg5);border-bottom-color:var(--rule)}
+#tbl-sample-efficiency td{border-bottom:0;color:var(--fg2);padding-top:.42rem;padding-bottom:.42rem}
+#tbl-sample-efficiency tbody tr:first-child td{padding-top:.75rem}
+#tbl-sample-efficiency th:nth-child(2){color:var(--fx-jud)}#tbl-sample-efficiency th:nth-child(3){color:var(--fx-ver)}
+#tbl-sample-efficiency td:nth-child(3){color:var(--fx-ver)}
+#tbl-sample-efficiency td b{font-weight:500;color:var(--fg)}
+
+/* ---------- 7 · agreement with human votes (placeholder) ---------- */
+.fx-hp{display:grid;grid-template-columns:repeat(2,minmax(0,auto));justify-content:center;gap:28px 56px}
+.fx-hp-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.fx-hp-h b{font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.fx-hp-grid{display:grid;grid-template-columns:repeat(10,13px);gap:4px}
+.fx-hp-grid i{width:13px;height:13px;border-radius:2px;box-shadow:inset 0 0 0 1px var(--rule);transition:background .35s;transition-delay:var(--d)}
+.fx-hp.in .fx-hp-grid i.a{background:var(--c)}
+.fx-hp.in .fx-hp-grid i.t{background:linear-gradient(135deg,var(--c) 0 50%,transparent 50%)}
+@media (max-width:420px){.fx-hp{gap:24px 22px}.fx-hp-grid{grid-template-columns:repeat(10,11px);gap:3.5px}.fx-hp-grid i{width:11px;height:11px}}
+
+/* ---------- 8 · best-of-N (placeholder) ---------- */
+.fx-bn{position:relative;touch-action:pan-y}
+.fx-bn .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
+.fx-bn.in .draw{transition:stroke-dashoffset 1.5s var(--fx-ease-io);stroke-dashoffset:0}
+.fx-bn .fade{opacity:0;transition:opacity .5s 1.2s}
+.fx-bn.in .fade{opacity:1}
+.fx-bn .rand{stroke:var(--fg5);stroke-dasharray:4 4;stroke-width:1.6;fill:none}
+.fx-bn .hov{opacity:0;transition:opacity .2s}
+.fx-bn.focus .hov{opacity:1}
+.fx-bn .guide{stroke:var(--fg4);stroke-dasharray:3 3}
+.fx-bn .dot-v{fill:var(--fx-ver);stroke:var(--bg);stroke-width:2}.fx-bn .dot-j{fill:var(--fx-jud);stroke:var(--bg);stroke-width:2}
+
+/* ---------- reduced motion: final states, no movement ---------- */
+@media (prefers-reduced-motion:reduce){
+  .fx *,.fx *::before,.fx *::after{transition:none!important;animation:none!important}
+}
