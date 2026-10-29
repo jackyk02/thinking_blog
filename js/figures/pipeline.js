@@ -2,10 +2,11 @@
    Prompt → Code (Inkling-Small writes p5.brush) → Render (the code becomes the painting) → Verify (Inkling-Small
    compares every pair, reads a score distribution, takes its expected value) → Normalise (reward minus the group
    mean) → Update (GRPO), then the updated policy writes the next group.
-   Render: each sketch's lines light up in turn and dissolve as the washes they stand for bloom on the paper
-   (js/painter.js), the five paintings a beat apart. The lines are schematic and the reveal is rebuilt from the
-   finished image, not replayed from the sketch (we don't have these sketches). Paintings are real (step 250); the
-   scores are PLACEHOLDER. Loops while visible; pause button; click a stage to hold it. Reduced motion: holds on Normalise. */
+   Code: under each square, a small strip of code lines writes itself. Render: each painting builds up brush mark by
+   brush mark like the cover (js/painter.js): the paper, washes, strokes, details; the strip's lines light up in step
+   with what is being painted. The five paint a beat apart. The lines are schematic and the marks are rebuilt from the
+   finished image (we don't have these sketches). Paintings are real (step 250); the scores are PLACEHOLDER.
+   Loops while visible; pause button; click a stage to hold it. Reduced motion: holds on Normalise. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-pipeline'); if (!root || !window.FX || !window.FIG) return;
@@ -15,7 +16,9 @@
   const GROUPS = ['pear', 'hydrangea'].map(k => ({ prompt: G[k].short, imgs: G[k].imgs, r: PH[k], name: k }));
   const STAGES = [['Prompt', ''], ['Code', 'Inkling-Small'], ['Render', ''], ['Verify', 'Inkling-Small'], ['Normalise', ''], ['Update', 'GRPO']];
   const DUR = [1100, 1500, 0, 2200, 1900, 1800]; // Render lasts as long as the paintings take
-  const LINES = 8, SPEED = 1.2, STAGGER = .26;
+  const SPEED = 1.15, STAGGER = .26;
+  // the strip's lines, and the part of the painting each one stands for (paper, washes, broad strokes, strokes, details)
+  const LINE_G = [0, 1, 1, 2, 3, 4], LINES = LINE_G.length;
   let st = 0, gi = 0, playing = !RM, visible = false, timer = 0, started = false, run = 0;
 
   // rail
@@ -34,16 +37,18 @@
   const now = h('div', { class: 'fx-pl-now', 'aria-live': 'off' });
   const prompt = h('p', { class: 'fx-pl-prompt' });
   const arcs = s('svg', { class: 'fx-pl-arcs', 'aria-hidden': 'true' });
-  // schematic code lines: widths per painting, so each sketch looks a little different
-  const widths = Array.from({ length: 5 }, (_, i) => { const r = FX.rng(11 + i * 7); return Array.from({ length: LINES }, (_, j) => j === 0 || j === LINES - 1 ? .38 + .2 * r() : .4 + .48 * r()) });
+  // schematic code lines (indents and widths per painting, so each sketch looks a little different)
+  const widths = Array.from({ length: 5 }, (_, i) => { const r = FX.rng(11 + i * 7); return Array.from({ length: LINES }, (_, j) => j === 0 ? .5 + .2 * r() : .34 + .5 * r()) });
   const slots = [0, 1, 2, 3, 4].map(i => {
-    const bars = widths[i].map((w, j) => h('i', { style: { width: w * 100 + '%', marginLeft: (j && j < LINES - 1 ? 10 : 0) + '%', '--d': i * 70 + j * 75 + 'ms' } }));
+    const bars = widths[i].map((w, j) => h('i', { style: { width: w * (j && LINE_G[j] === LINE_G[j - 1] ? 84 : 92) + '%', marginLeft: (j && LINE_G[j] === LINE_G[j - 1] ? 8 : 0) + '%', '--d': i * 60 + j * 70 + 'ms' } }));
     const code = h('div', { class: 'fx-pl-code', 'aria-hidden': 'true' }, bars);
     const img = paint(GROUPS[0].imgs[i], ''), cv = RM ? null : h('canvas', { 'aria-hidden': 'true' });
-    const sq = h('div', { class: 'fx-pl-sq' + (RM ? ' done' : '') }, img, cv, code);
+    const sq = h('div', { class: 'fx-pl-sq' + (RM ? ' done' : '') }, img, cv);
     const dist = h('div', { class: 'fx-pl-dist', 'aria-hidden': 'true' }, Array.from({ length: 12 }, (_, b) => h('i', { style: { '--d': i * 60 + b * 18 + 'ms' } })));
+    // the code strip and, from Verify on, the score distribution share the space under the painting
+    const under = h('div', { class: 'fx-pl-under' }, code, dist);
     const score = h('span', { class: 'fx-pl-score' }), bar = h('span', { class: 'bar' }), adv = h('div', { class: 'fx-pl-adv', 'aria-hidden': 'true' }, bar);
-    return { el: h('div', { class: 'fx-pl-slot' }, sq, dist, score, adv), sq, img, cv, bars, dist, score, bar, adv, i, job: null };
+    return { el: h('div', { class: 'fx-pl-slot' }, sq, under, score, adv), sq, img, cv, bars, dist, score, bar, adv, i, job: null };
   });
   const row = h('div', { class: 'fx-pl-row' }, slots.map(x => x.el));
   const mean = h('div', { class: 'fx-pl-mean', 'aria-hidden': 'true' });
@@ -52,7 +57,9 @@
   root.setAttribute('role', 'group');
   root.setAttribute('aria-label', 'RL training loop: a text prompt; Inkling-Small writes five p5.brush sketches; each sketch renders into a painting; Inkling-Small, as the verifier, compares every pair and scores each painting; scores are centered within the group; GRPO updates the model, which writes the next group.');
 
-  const prefetch = g => { if (!RM) GROUPS[g].imgs.forEach((src, i) => Painter.prefetch(src, slots[i].cv, 320)) };
+  // the brush marks are worked out (in a worker) once the figure is near
+  let near = false;
+  const prefetch = g => { if (!RM && near) GROUPS[g].imgs.forEach((src, i) => Painter.prefetch(src, slots[i].cv, 320)) };
   function fill(g) {
     const grp = GROUPS[g], m = grp.r.reduce((a, b) => a + b) / 5, adv = grp.r.map(v => v - m), mx = Math.max(...adv.map(Math.abs));
     prompt.textContent = `“${grp.prompt}”`;
@@ -67,31 +74,39 @@
   }
   function sizeBars() { const half = (slots[0].adv.getBoundingClientRect().height || 60) / 2 - 3; slots.forEach(x => x.bar.style.height = Math.max(2, x.bar._f * half) + 'px') }
 
-  /* ---- render: paint the five, code lines lighting up and dissolving with the layers they stand for ---- */
+  /* ---- render: paint the five; each strip's lines light up with the part of the painting they stand for ---- */
+  const setBars = (x, k) => { x._k = k; x.bars.forEach((b, j) => { b.classList.toggle('run', j < k); b.classList.toggle('on', j === k) }) };
   function clearPaint() {
-    slots.forEach(x => { if (x.job) { x.job.cancel(false); x.job = null } x.sq.classList.remove('paper', 'done'); x.bars.forEach(b => b.classList.remove('on', 'gone')) });
+    slots.forEach(x => { if (x.job) { x.job.cancel(false); x.job = null } x.sq.classList.remove('paper', 'done'); x.cv && x.cv.getContext('2d').clearRect(0, 0, x.cv.width, x.cv.height); setBars(x, -1) });
   }
   function finishPaint() {
-    slots.forEach(x => { if (x.job) { x.job.cancel(true); x.job = null } x.sq.classList.remove('paper'); x.sq.classList.add('done') });
+    slots.forEach(x => { if (x.job) { x.job.cancel(true); x.job = null } x.sq.classList.remove('paper'); x.sq.classList.add('done'); setBars(x, LINES) });
   }
   function startPaint() {
     clearPaint();
     const id = ++run, grp = GROUPS[gi];
     const jobs = slots.map(x => {
       x.sq.classList.add('paper');
-      const job = x.job = Painter.paint(x.cv, grp.imgs[x.i], { max: 320, speed: SPEED, delay: .35 + x.i * STAGGER, onFrame: t => lines(x, job, t) });
-      return job.done.then(() => { if (x.job === job) { x.job = null; x.sq.classList.add('done'); x.sq.classList.remove('paper') } });
+      const job = x.job = Painter.paint(x.cv, grp.imgs[x.i], { from: 'blank', max: 320, speed: SPEED, delay: .3 + x.i * STAGGER, onFrame: t => lines(x, job, t) });
+      return job.done.then(() => { if (x.job === job) { x.job = null; x.sq.classList.add('done'); x.sq.classList.remove('paper'); setBars(x, LINES) } });
     });
     // when all five are painted, the loop moves on (if it is playing)
     Promise.all(jobs).then(() => { if (id === run && st === 2) schedule(650) });
   }
+  // the strip's current line: the group being painted now; a group with two lines splits its time between them
   function lines(x, job, t) {
-    const L = job.layers, n = L.length; if (!n) return;
+    const G = job.groups;
+    if (!G.length) { const k = job.total ? Math.min(LINES, Math.floor(t / job.total * LINES)) : -1; if (k !== x._k) setBars(x, k); return } // a real sketch: by time
+    const byName = {}; G.forEach(g => { byName[g.name] = g });
+    const names = ['paper', 'washes', 'broad strokes', 'strokes', 'details'];
+    let k = -1;
     for (let j = 0; j < LINES; j++) {
-      const a = Math.min(n - 1, Math.floor(j * n / LINES)), b = Math.max(a, Math.min(n - 1, Math.floor((j + 1) * n / LINES) - 1));
-      const on = t >= L[a].t0, gone = t >= L[b].t1 - .15;
-      const el = x.bars[j]; el.classList.toggle('on', on && !gone); el.classList.toggle('gone', gone);
+      const g = byName[names[LINE_G[j]]]; if (!g) continue;
+      const same = LINE_G.filter(v => v === LINE_G[j]).length, part = LINE_G.slice(0, j).filter(v => v === LINE_G[j]).length;
+      if (t >= g.t0 + (g.t1 - g.t0) * part / same) k = j;
     }
+    if (t >= job.total - .45) k = LINES; // settling: every line has run
+    if (k !== x._k) setBars(x, k);
   }
 
   function layout() {
@@ -133,7 +148,7 @@
     if (!RM) {
       if (i < 2) clearPaint();
       else if (i > 2) finishPaint();
-    }
+    } else slots.forEach(x => setBars(x, LINES));
     if (i === 3 && !instant && !RM) { root.classList.remove('arcs'); void root.offsetWidth; root.classList.add('arcs') }
     else if (i !== 3) root.classList.remove('arcs');
     if (i === 4) prefetch((gi + 1) % GROUPS.length);
@@ -160,6 +175,7 @@
   }
 
   fill(0);
+  if (!RM) { const pio = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pio.disconnect(); near = true; prefetch(gi) } }, { rootMargin: '700px 0px' }); pio.observe(root) }
   responsive(root, layout);
   window.addEventListener('load', layout);
   if (RM) { show(4, true); return }
