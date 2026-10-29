@@ -83,8 +83,7 @@
 
   // s1: the judge row lands; s2: the verifier's paintings and marks appear at the judge's spot; s3: they slide apart
   let timers = [], busy = false, seen = false, painted = RM;
-  // first view: each row's frames show blank paper and the paintings paint themselves, column by column, like the
-  // training figure (js/painter.js); the judge's scores land once its row is painted, then the verifier's row paints
+  // first view: both rows' frames show blank paper and the paintings paint themselves (js/painter.js), then the scores
   const paintRow = (r, speed, step) => Promise.all(r.cells.map(cell => {
     const job = Painter.paint(cell.cv, cell.src, { speed, delay: cell.c * step });
     return job.done.then(() => Painter.load(cell.src)).catch(() => {}).then(() => cell.fr.classList.add('done'));
@@ -92,13 +91,12 @@
   function firstPlay() {
     busy = true;
     stage.classList.add('reset'); stage.classList.remove('f1', 'f2', 's1', 's2', 's3'); draw(); void stage.offsetWidth; stage.classList.remove('reset');
-    stage.classList.add('f1');
-    paintRow(rows[0], 1.5, .32)
-      .then(() => { stage.classList.add('s1'); return new Promise(res => timers.push(setTimeout(res, 1100))) })
-      .then(() => { stage.classList.add('f2'); return paintRow(rows[1], 2, .22) })
+    // both rows paint together, all four columns at once (a light stagger), quickly; then the scores land and slide
+    stage.classList.add('f1', 'f2');
+    Promise.all([paintRow(rows[0], 3.2, .06), paintRow(rows[1], 3.2, .06)])
       .then(() => {
-        painted = true; stage.classList.add('s2');
-        timers.push(setTimeout(() => { stage.classList.add('s3'); countUp() }, 600), setTimeout(() => { busy = false }, 2600));
+        painted = true; stage.classList.add('s1');
+        timers.push(setTimeout(() => stage.classList.add('s2'), 350), setTimeout(() => { stage.classList.add('s3'); countUp() }, 750), setTimeout(() => { busy = false }, 2600));
       });
   }
   function play() {
