@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scaling RL for Creative Tasks</title>
 <meta name="description" content="Scaling verification with LLM-as-a-Verifier makes RL more effective for creative, non-verifiable tasks, using watercolor painting with Inkling-Small as a case study.">
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
@@ -99,150 +100,21 @@ figcaption b{color:var(--fg2);font-weight:500}
 .chart .lbl.hi{fill:var(--fg);font-weight:600}
 .tip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);font-family:var(--font-sans);font-size:12px;padding:.35rem .55rem;border-radius:4px;opacity:0;transition:opacity .12s;z-index:200;white-space:nowrap}
 
-/* RL pipeline diagram */
-.pipe-fig{--accent:#8C1515;margin-top:1.4rem;margin-bottom:1.4rem}
-.pipe-fig figcaption{margin-top:.5rem}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pipe-fig{--accent:#E0605A}}
-:root[data-theme="dark"] .pipe-fig{--accent:#E0605A}
-.pipe-toggle{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--font-sans);font-size:12.5px}
-.pipe-toggle-label{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4);margin-right:4px}
-.pipe-toggle button{font:inherit;border:1px solid var(--rule);background:var(--bg);color:var(--fg3);border-radius:999px;padding:3px 11px;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
-.pipe-toggle button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.pipe svg{display:block;width:100%;height:auto;overflow:visible}
-.pipe .node rect{fill:var(--code-bg);stroke:var(--rule);stroke-width:1.2;transition:stroke .3s,fill .3s}
-.pipe .node.accent rect{stroke:color-mix(in srgb,var(--accent) 45%,var(--rule))}
-.pipe .node.on rect{stroke:var(--fg);fill:var(--bg)}
-.pipe .node.accent.on rect{stroke:var(--accent)}
-.pipe .n-title{font-family:var(--font-sans);font-size:13px;font-weight:600;fill:var(--fg);text-anchor:middle}
-.pipe .n-sub{font-family:var(--font-serif);font-style:italic;font-size:11.5px;fill:var(--fg3);text-anchor:middle}
-.pipe .node.accent .n-title{fill:var(--accent)}
-.pipe .edge{fill:none;stroke:var(--fg5);stroke-width:1.5}
-.pipe .edge.loop{stroke-dasharray:5 5}
-.pipe .arrow{fill:var(--fg5)}
-.pipe .loop-lbl{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;fill:var(--fg4);text-anchor:middle}
-.pipe .packet rect{fill:var(--fg)}
-.pipe .packet.accent rect{fill:var(--accent)}
-.pipe .packet text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:11px;fill:var(--bg);text-anchor:middle;dominant-baseline:central}
-.pipe .packet{transition:opacity .25s}
-@media (prefers-reduced-motion:reduce){.pipe .packet{display:none}}
-
-/* RL pipeline v2: what each stage produces */
-.p2{position:relative;padding-bottom:40px;--accent:#8C1515;font-family:var(--font-sans)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .p2{--accent:#E0605A}}
-:root[data-theme="dark"] .p2{--accent:#E0605A}
-.p2-stages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
-.p2-stage{position:relative;margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
-.p2-stage:not(:last-child)::after{content:"";position:absolute;right:-12px;top:calc(20px + 46px);width:10px;height:10px;border-top:1.5px solid var(--fg5);border-right:1.5px solid var(--fg5);transform:translateY(-50%) rotate(45deg) scale(.7)}
-.p2-num{font-family:var(--font-sans);font-size:12px;font-weight:600;color:var(--fg3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .3s}
-.p2-body{height:92px;border-radius:8px;background:var(--code-bg);box-shadow:inset 0 0 0 1px var(--rule);display:flex;align-items:center;justify-content:center;overflow:hidden;transition:box-shadow .3s,background .3s}
-.p2-cap{font-family:var(--font-serif);font-style:italic;font-size:12px;color:var(--fg3);line-height:1.25}
-.p2-stage.on .p2-body{box-shadow:inset 0 0 0 1.5px var(--fg);background:var(--bg)}
-.p2-stage.on .p2-num{color:var(--fg)}
-.p2-accent .p2-num{color:var(--accent)}
-.p2-accent.on .p2-body{box-shadow:inset 0 0 0 1.5px var(--accent)}
-/* stage contents animate in when reached (class .seen persists for the rest of the cycle) */
-.p2-prompt span{font-family:var(--font-serif);font-style:italic;font-size:13px;line-height:1.3;color:var(--fg1);text-align:center;padding:0 8px;opacity:.25;transition:opacity .4s}
-.p2-stage.seen .p2-prompt span{opacity:1}
-.p2-code{flex-direction:column;align-items:stretch;justify-content:center;gap:3px;padding:0 8px}
-.p2-code code{display:block;font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:9.2px;color:var(--fg2);white-space:nowrap;overflow:hidden;background:none;padding:0;clip-path:inset(0 100% 0 0);transition:clip-path .35s steps(12)}
-.p2-stage.seen .p2-code code{clip-path:inset(0 0 0 0)}
-.p2-stage.seen .p2-code code:nth-child(2){transition-delay:.25s}.p2-stage.seen .p2-code code:nth-child(3){transition-delay:.5s}.p2-stage.seen .p2-code code:nth-child(4){transition-delay:.75s}
-.p2-render img{width:76px;height:76px;border-radius:4px;opacity:0;clip-path:inset(0 100% 0 0);filter:blur(6px);transition:clip-path .7s ease,filter .9s ease,opacity .3s}
-.p2-stage.seen .p2-render img{opacity:1;clip-path:inset(0 0 0 0);filter:none}
-.p2-verify{gap:8px;padding:0 6px}
-.p2-cand{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
-.p2-cand img{width:40px;height:40px;border-radius:3px;box-shadow:0 0 0 1px var(--rule)}
-.p2-cand b{font-size:11px;font-weight:600;color:var(--accent);font-variant-numeric:tabular-nums;opacity:0;transition:opacity .3s .7s}
-.p2-dist{display:flex;align-items:flex-end;gap:2px;height:16px}
-.p2-dist i{display:block;width:5px;background:color-mix(in srgb,var(--accent) 70%,transparent);border-radius:1px 1px 0 0;height:2px;transition:height .5s ease}
-.p2-stage.seen .p2-dist i:nth-child(1){height:calc(var(--b1)*16px)}.p2-stage.seen .p2-dist i:nth-child(2){height:calc(var(--b2)*16px)}.p2-stage.seen .p2-dist i:nth-child(3){height:calc(var(--b3)*16px)}.p2-stage.seen .p2-dist i:nth-child(4){height:calc(var(--b4)*16px)}.p2-stage.seen .p2-dist i:nth-child(5){height:calc(var(--b5)*16px)}
-.p2-stage.seen .p2-cand b{opacity:1}
-.p2-grpo{gap:7px;position:relative}
-.p2-grpo::before{content:"";position:absolute;left:12px;right:12px;top:50%;height:1px;background:var(--fg5)}
-.p2-grpo span{position:relative;width:12px;height:60px}
-.p2-grpo span::after{content:"";position:absolute;left:0;right:0;border-radius:2px;background:var(--fg2);height:0;transition:height .5s ease}
-.p2-grpo span[style*="--a:-"]::after{top:50%;background:var(--fg5)}
-.p2-grpo span:not([style*="--a:-"])::after{bottom:50%}
-.p2-stage.seen .p2-grpo span::after{height:calc(max(var(--a),calc(var(--a)*-1))*30px)}
-/* loop back to the model */
-.p2-loop{position:absolute;left:0;right:0;bottom:6px;width:100%;height:30px;overflow:visible}
-.p2-loop path{fill:none;stroke:var(--fg5);stroke-width:1.4;stroke-dasharray:5 5}
-.p2.looping .p2-loop path{stroke:var(--fg2);animation:p2-flow .6s linear infinite}
-@keyframes p2-flow{to{stroke-dashoffset:-20}}
-.p2-loop-arrow{position:absolute;left:30%;bottom:34px;transform:translateX(-50%);border:5px solid transparent;border-bottom:7px solid var(--fg5);border-top:0}
-.p2.looping .p2-loop-arrow{border-bottom-color:var(--fg2)}
-.p2-loop-lbl{position:absolute;left:60%;bottom:0;transform:translateX(-50%);font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg4);background:var(--bg);padding:0 6px}
-@media (max-width:600px){
-  .p2{padding-bottom:28px}
-  .p2-stages{grid-template-columns:1fr;gap:16px}
-  .p2-stage{display:grid;grid-template-columns:1fr 132px;grid-template-rows:auto auto;column-gap:12px;align-items:center}
-  .p2-num{grid-column:1;grid-row:1;align-self:end}.p2-cap{grid-column:1;grid-row:2;align-self:start}
-  .p2-body{grid-column:2;grid-row:1/3}
-  .p2-stage:not(:last-child)::after{right:auto;left:calc(100% - 66px);top:auto;bottom:-13px;transform:rotate(135deg) scale(.7)}
-  .p2-loop,.p2-loop-arrow{display:none}
-  .p2-loop-lbl{left:0;transform:none;padding:0}
-  .p2-loop-lbl::before{content:"↻ repeat with "}
-}
-@media (prefers-reduced-motion:reduce){.p2 *{transition:none!important;animation:none!important}}
-
 /* LLM-as-a-Verifier prompt + equation */
 .prompt-box{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;background:var(--code-bg);border-radius:.45rem;padding:1rem 1.1rem;white-space:pre-wrap;color:var(--fg1);margin:1rem 0 1.4rem}
 .prompt-box .ph{color:var(--fg4);font-style:italic}
 .eq-box{margin:1rem 0 1.2rem;overflow-x:auto;overflow-y:hidden;text-align:center}
 .content .katex{font-size:1.02em}
 
-/* Judge tie example */
-.tie-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:14px;max-width:520px;margin:0 auto}
-.tie-item img{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 7%,transparent)}
-.tie-score{display:block;margin-top:8px;text-align:center;font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4)}
-.tie-score b{font-size:13px;color:var(--fg);letter-spacing:0;margin-left:4px}
-.tie-eq{font-family:var(--font-sans);font-size:26px;font-weight:300;color:var(--fg4);padding-bottom:24px}
-.tie-fig figcaption{text-align:center;max-width:520px;margin-left:auto;margin-right:auto}
-
-/* Painting RL demo grid */
-.demo-grid{--demo-label:138px;--demo-gap:12px}
-#fig-more-paintings{margin-top:2.6rem}
-#fig-more-paintings .table-sub{margin-bottom:18px}
-@media (min-width:1180px){.demo-grid{margin-right:-180px}}
-.demo-axis,.demo-row{display:grid;grid-template-columns:var(--demo-label) minmax(0,1fr);column-gap:var(--demo-gap);align-items:center}
-.demo-axis{margin-bottom:10px;font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4)}
-.demo-axis-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--demo-gap);position:relative;padding-bottom:9px}
-.demo-axis-steps span{text-align:center}
-/* a thin arrow under the step labels: training moves left to right */
-.demo-axis-steps::after{content:"";position:absolute;left:12.5%;right:10.5%;bottom:0;height:1px;background:var(--fg5)}
-.demo-axis-steps::before{content:"";position:absolute;right:10.5%;bottom:-3px;border:3.5px solid transparent;border-left:6px solid var(--fg5);border-right:0;transform:translateX(100%)}
-.demo-row{padding:var(--demo-gap) 0}
-.demo-row[hidden]{display:none}
-.demo-chart-row{margin-top:10px;padding-top:22px;border-top:1px solid var(--rule);align-items:start}
-.demo-chart-row .demo-head{padding-top:6px;align-self:start}
-#v3-chart text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
-#v3-chart .cap{text-transform:uppercase;letter-spacing:.08em}
-#v3-chart .end-lbl{font-family:var(--font-sans);font-size:13px;letter-spacing:0;font-weight:500}
-#v3-chart,#tie-chart{--verifier:#8C1515;--judge:#4D4F53}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #v3-chart,:root:not([data-theme="light"]) #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}}
-:root[data-theme="dark"] #v3-chart,:root[data-theme="dark"] #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}
-#v3-chart .end-ver{fill:var(--verifier)}
+/* Tie-rate chart (the held-out chart and step grid moved to css/figures.css) */
+#tie-chart{--verifier:#8C1515;--judge:#4D4F53}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}}
+:root[data-theme="dark"] #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}
 #tie-chart text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
 #tie-chart .cap{text-transform:uppercase;letter-spacing:.08em}
 #tie-chart .end-lbl{font-family:var(--font-sans);font-size:13px;letter-spacing:0;font-weight:500}
 #tie-chart .end-ver{fill:var(--verifier)}#tie-chart .end-jud{fill:var(--judge)}
 @media (max-width:620px){#tie-chart text{font-size:19px}#tie-chart .end-lbl{font-size:17px}}
-#v3-chart .gap{fill:none;stroke:var(--fg5);stroke-width:1.2}
-#v3-chart .gap-lbl{font-family:var(--font-sans);font-size:13px;font-weight:600;letter-spacing:0;fill:var(--verifier)}
-@media (max-width:620px){#v3-chart text{font-size:19px}#v3-chart .end-lbl,#v3-chart .gap-lbl{font-size:17px}}#v3-chart .end-jud{fill:var(--judge)}
-.demo-head{align-self:center}
-.demo-subject{font-family:var(--font-serif);font-style:italic;font-size:17px;line-height:1.3;color:var(--fg)}
-.demo-frames{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--demo-gap)}
-.demo-frames .iter{margin:0}
-.demo-frames img{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 7%,transparent);transition:transform .25s ease}
-.demo-frames img:hover{transform:scale(1.03)}
-.demo-grid figcaption{margin-top:14px}
-@media (max-width:620px){
-  .demo-axis,.demo-row{grid-template-columns:1fr}
-  .demo-axis-label{display:none}
-  .demo-head{margin-bottom:8px}
-  .demo-grid{--demo-gap:8px}
-}
 
 /* Flow diagram */
 .flow{display:flex;align-items:stretch;gap:.5rem;font-family:var(--font-sans);font-size:13px;flex-wrap:wrap;justify-content:center}
@@ -275,6 +147,7 @@ tr.hi td{font-weight:600}
 .table-title{font-family:var(--font-sans);font-size:14px;font-weight:600;color:var(--fg);margin-bottom:2px}
 .table-sub{font-family:var(--font-sans);font-size:13px;color:var(--fg4);margin-bottom:10px}
 .table-caption{font-family:var(--font-sans);font-size:var(--caption);color:var(--fg4);margin-top:.7rem}
+@media (max-width:600px){th,td{padding:.5rem .35rem}th{font-size:10.5px;letter-spacing:.02em}}
 
 /* Citation */
 .cite{position:relative;background:var(--code-bg);border-radius:6px;padding:1rem 1.1rem;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre;overflow-x:auto}
@@ -367,6 +240,7 @@ figure.right-wide{margin-left:0}
 .flow .stage{flex:1 1 100px}
 .flow-label{font-family:var(--font-sans);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg4);text-align:center;margin:.3rem 0}
 </style>
+<link rel="stylesheet" href="css/figures.css">
 </head>
 <body>
 
@@ -418,44 +292,24 @@ figure.right-wide{margin-left:0}
       </ul>
 
       <h2 id="paintings-over-rl-training">Painting Quality over RL training</h2>
-      <figure class="demo-grid" id="fig-painting-rl-demos">
-          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>100</span><span>200</span><span>300</span><span>400</span></div></div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">pear on table</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/ochre-pear-iter1.jpg" alt="pear on table, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter2.jpg" alt="pear on table, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter3.jpg" alt="pear on table, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter4.jpg" alt="pear on table, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row" hidden>
-            <div class="demo-head"><span class="demo-subject">violet daisy</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/violet-daisy-iter1.jpg" alt="violet daisy, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter2.jpg" alt="violet daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter3.jpg" alt="violet daisy, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter4.jpg" alt="violet daisy, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">mountain at dawn</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/mountain-dawn-iter1.jpg" alt="mountain at dawn, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter2.jpg" alt="mountain at dawn, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter3.jpg" alt="mountain at dawn, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter4.jpg" alt="mountain at dawn, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row demo-chart-row">
-            <div class="demo-head"><span class="demo-subject">verifier vs. judge</span></div>
-            <div class="chart" id="v3-chart"></div>
-          </div>
-        <figcaption><b>Top:</b> paintings at steps 100, 200, 300 and 400 of RL training using LLM-as-a-Verifier as reward. <b>Bottom:</b> Held-out scores throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the mean scores assigned by Kimi-K2.6 to 250 samples across three seeds. By step 500, the verifier achieves a 7% absolute improvement over the judge (0.761 vs. 0.693).</figcaption>
+      <figure class="fx fx-wide" id="fig-painting-rl-demos">
+        <div class="fx-tr" id="fx-training"></div>
+        <figcaption>Held-out score: mean Kimi-K2.6 rating of 250 samples over three seeds. Paintings are from the verifier run. Step 500: 0.761 vs. 0.693.</figcaption>
       </figure>
 
       <h2 id="limitations-of-llm-as-a-judge">Limitations of LLM-as-a-Judge</h2>
       <p>A common approach to RL in non-verifiable domains is to use an LLM-as-a-Judge to provide reward signals. However, standard LLM judges often suffer from coarse-grained scoring, making it difficult to distinguish between outputs of similar quality. For example, when evaluating two paintings, an LLM judge may assign both a score of 5, resulting in a tie despite meaningful differences in their aesthetic quality.</p>
 
-      <figure class="tie-fig" id="fig-judge-tie">
-        <div class="tie-pair">
-          <div class="tie-item"><img src="1.jpg" alt="A loose pink watercolor daisy with a pale yellow center and a small green leaf" width="420" height="420" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
-          <div class="tie-eq" aria-hidden="true">=</div>
-          <div class="tie-item"><img src="2.jpg" alt="A fuller, more saturated crimson watercolor daisy with layered petals and a golden center" width="420" height="420" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
-        </div>
-        <figcaption>An LLM judge gives both paintings the same score of 5, a tie, despite clear differences in their aesthetic quality.</figcaption>
+      <figure class="fx" id="fig-judge-tie">
+        <div id="fx-judge-tie"></div>
+        <figcaption style="text-align:center">An LLM judge scores both paintings 5; the verifier's distributions over 20 score tokens separate them.</figcaption>
       </figure>
 
       <p>We also observe that this tie rate increases as RL training progresses, as the model produces increasingly competitive outputs that become harder to distinguish using discrete scores. The tie rate rises from 27% over the first 50 steps to about 40% by step 250.</p>
 
-      <figure class="right-wide" id="fig-tie-rate">
+      <figure class="fx right-wide" id="fig-tie-rate">
         <div class="chart" id="tie-chart"></div>
-        <figcaption>Tie rate throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the share of rollout groups whose top score is tied, smoothed over 20 steps. The judge's tie rate rises to about 40% by step 250, while the verifier never ties.</figcaption>
+        <figcaption>Share of rollout groups whose top score is tied, smoothed over 20 steps.</figcaption>
       </figure>
 
       <h2 id="how-does-llm-as-a-verifier-work">How does LLM-as-a-Verifier work?</h2>
@@ -477,39 +331,26 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
       <div class="eq-box">\[ R(x, \tau) = \frac{1}{CK} \sum_{c=1}^{C} \sum_{k=1}^{K} \sum_{g=1}^{G} p_{\theta}(v_g \mid x, c, \tau)\,\phi(v_g) \]</div>
       <p>where \(C\) is the number of evaluation criteria, \(K\) is the number of repeated verifications, \(G\) is the number of score tokens (granularity level), \(p_{\theta}(v_g \mid x, c, \tau)\) is the probability assigned by model \(\theta\) to score token \(v_g\), and \(\phi(v_g)\) maps each score token to a scalar value. See <a href="https://llm-as-a-verifier.com/" target="_blank" rel="noopener">llm-as-a-verifier.com</a> for details.</p>
 
+      <figure class="fx" id="fig-break-tie">
+        <div id="fx-break-tie"></div>
+        <figcaption>One group of five. Dot: reward. Band: how far it moves when re-scored. Grey line: a tie.</figcaption>
+      </figure>
+
       <h2 id="rl-training-pipeline">RL Training Pipeline</h2>
       <p>Given a text prompt (e.g., “a pear in watercolor”), Inkling-Small generates a JavaScript sketch using the p5.brush library. The sketch is executed in a sandboxed Puppeteer environment to produce a rendered PNG image. The resulting painting is then evaluated by the same model, Inkling-Small, through LLM-as-a-Verifier, which assigns fine-grained scores to assess its visual quality and alignment with the input prompt. These scores are normalized within each group and used to optimize the model via GRPO.</p>
 
-      <figure class="pipe-fig" id="fig-pipeline">
-        <div class="p2" id="pipe2" role="img" aria-label="RL training loop: a text prompt goes to Inkling-Small, which writes a p5.brush sketch; Puppeteer renders it to a PNG; LLM-as-a-Verifier compares paintings and assigns fine-grained scores; GRPO normalizes the scores within the group into advantages and updates the model, and the loop repeats with the updated policy.">
-          <ol class="p2-stages">
-            <li class="p2-stage"><span class="p2-num">Prompt</span>
-              <div class="p2-body p2-prompt"><span>“a pear in watercolor”</span></div>
-              <span class="p2-cap">text prompt</span></li>
-            <li class="p2-stage"><span class="p2-num">Inkling-Small</span>
-              <div class="p2-body p2-code"><code>brush.pick("pen")</code><code>brush.fill(ochre)</code><code>brush.bleed(0.2)</code><code>brush.polygon(…)</code></div>
-              <span class="p2-cap">writes p5.brush JS</span></li>
-            <li class="p2-stage"><span class="p2-num">Render</span>
-              <div class="p2-body p2-render"><img src="demos/ochre-pear-iter4.jpg" alt="" width="420" height="420"></div>
-              <span class="p2-cap">Puppeteer → PNG</span></li>
-            <li class="p2-stage p2-accent"><span class="p2-num">LLM-as-a-Verifier</span>
-              <div class="p2-body p2-verify">
-                <div class="p2-cand"><img src="demos/ochre-pear-iter3.jpg" alt="" width="420" height="420"><span class="p2-dist" style="--b1:.1;--b2:.35;--b3:.8;--b4:.45;--b5:.15"><i></i><i></i><i></i><i></i><i></i></span><b>0.61</b></div>
-                <div class="p2-cand"><img src="demos/ochre-pear-iter4.jpg" alt="" width="420" height="420"><span class="p2-dist" style="--b1:.05;--b2:.12;--b3:.3;--b4:.85;--b5:.5"><i></i><i></i><i></i><i></i><i></i></span><b>0.74</b></div>
-              </div>
-              <span class="p2-cap">fine-grained scores</span></li>
-            <li class="p2-stage"><span class="p2-num">GRPO</span>
-              <div class="p2-body p2-grpo"><span style="--a:.75"></span><span style="--a:-.35"></span><span style="--a:.2"></span><span style="--a:-.6"></span></div>
-              <span class="p2-cap">normalize → update</span></li>
-          </ol>
-          <svg class="p2-loop" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="M90 0V14H30V2" vector-effect="non-scaling-stroke"/></svg>
-          <span class="p2-loop-arrow" aria-hidden="true"></span>
-          <span class="p2-loop-lbl" aria-hidden="true">updated policy</span>
-        </div>
-        <figcaption>The RL training loop with LLM-as-a-Verifier. Inkling-Small is both the painter and the verifier. Paintings and scores shown are illustrative.</figcaption>
+      <figure class="fx fx-wide" id="fig-pipeline">
+        <div class="fx-pl" id="fx-pipeline"></div>
+        <figcaption>Inkling-Small is both the painter and the verifier. Real paintings from one group at step 250; scores are placeholders.</figcaption>
       </figure>
 
       <p>As a baseline, we replace the verifier with the standard LLM-as-a-Judge, which scores each painting separately on a discrete scale. Everything else in the pipeline stays the same. The fine-grained verifier score improves sample efficiency by ≈1.5× on painting.</p>
+
+      <!-- PROPOSAL (Surya, sn/figures): new figure. Shows why the judge's ties matter for GRPO; scores are placeholders. -->
+      <figure class="fx" id="fig-grpo-tie">
+        <div id="fx-grpo-tie"></div>
+        <figcaption>Bar: a painting's reward minus the group mean, the advantage GRPO learns from. A tied group has none.</figcaption>
+      </figure>
 
 
       <h2 id="painting-results">Results</h2>
@@ -524,34 +365,30 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
         </table>
       </div>
 
-      <figure class="demo-grid" id="fig-more-paintings">
-          <div class="table-title">More Paintings over RL Training</div>
-          <div class="table-sub">Prompts not shown above, at steps 100, 200, 300 and 400 of RL training using LLM-as-a-Verifier as reward.</div>
-          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>100</span><span>200</span><span>300</span><span>400</span></div></div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">teal forest path</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/teal-forest-path-iter1.jpg" alt="teal forest path, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter2.jpg" alt="teal forest path, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter3.jpg" alt="teal forest path, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter4.jpg" alt="teal forest path, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">rose pink cactus</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-cactus-iter1.jpg" alt="rose pink cactus, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter2.jpg" alt="rose pink cactus, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter3.jpg" alt="rose pink cactus, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter4.jpg" alt="rose pink cactus, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">crimson daisy</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/crimson-daisy-iter1.jpg" alt="crimson daisy, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter2.jpg" alt="crimson daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter3.jpg" alt="crimson daisy, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter4.jpg" alt="crimson daisy, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">rose pink lighthouse on a rocky coast</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter1.jpg" alt="rose pink lighthouse on a rocky coast, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter2.jpg" alt="rose pink lighthouse on a rocky coast, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter3.jpg" alt="rose pink lighthouse on a rocky coast, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter4.jpg" alt="rose pink lighthouse on a rocky coast, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">rose pink koi fish</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-koi-fish-iter1.jpg" alt="rose pink koi fish, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter2.jpg" alt="rose pink koi fish, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter3.jpg" alt="rose pink koi fish, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter4.jpg" alt="rose pink koi fish, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">indigo cherry blossom branch</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter1.jpg" alt="indigo cherry blossom branch, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter2.jpg" alt="indigo cherry blossom branch, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter3.jpg" alt="indigo cherry blossom branch, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter4.jpg" alt="indigo cherry blossom branch, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
+      <figure class="fx" id="fig-more-paintings">
+        <div class="table-title">More Paintings over RL Training</div>
+        <div class="table-sub">Six more prompts at steps 100–400, with LLM-as-a-Verifier as reward.</div>
+        <div id="fx-gallery" style="margin-top:18px"></div>
+      </figure>
+
+      <!-- PROPOSAL (Surya, sn/figures): new subsection for intro claim 2 ("Verifiers better align with human preferences"),
+           which has no evidence in the post yet. The figure uses PLACEHOLDER numbers (js/figures/data.js, placeholder.human).
+           Data needed: BrushArena painting pairs with human votes; judge and verifier run on each pair, both orders. -->
+      <h3 id="human-preference">Agreement with human preferences</h3>
+      <p>We compare each scorer's choice with human votes on pairs of paintings of the same prompt.</p>
+      <figure class="fx" id="fig-human-pref">
+        <div id="fx-human"></div>
+        <figcaption style="text-align:center">Squares are human-voted pairs: filled where the scorer agrees with people, half for a judge tie.</figcaption>
+      </figure>
+
+      <!-- PROPOSAL (Surya, sn/figures): new subsection for intro claim 3 ("better signals for test-time scaling"),
+           which has no evidence in the post yet. The figure uses a PLACEHOLDER curve (js/figures/data.js, placeholder.bestOfN).
+           Data needed: ~50 held-out prompts x 32 samples from the final checkpoint; judge, verifier and Kimi-K2.6 score per sample. -->
+      <h3 id="test-time-scaling">Test-time scaling</h3>
+      <p>At test time, we sample N paintings per prompt and keep the one each scorer ranks highest.</p>
+      <figure class="fx" id="fig-best-of-n">
+        <div id="fx-bon"></div>
+        <figcaption>Held-out score of the selected painting as N grows.</figcaption>
       </figure>
 
       <h2 id="painting-conclusion">Conclusion</h2>
@@ -601,6 +438,19 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 
 <script src="js/hero.js"></script>
 
+<!-- figures: shared helpers, data, then one file per figure -->
+<script src="js/figures/core.js"></script>
+<script src="js/figures/data.js"></script>
+<script src="js/figures/training.js"></script>
+<script src="js/figures/judge-tie.js"></script>
+<script src="js/figures/tie-rate.js"></script>
+<script src="js/figures/break-tie.js"></script>
+<script src="js/figures/pipeline.js"></script>
+<script src="js/figures/grpo-tie.js"></script>
+<script src="js/figures/gallery.js"></script>
+<script src="js/figures/human-pref.js"></script>
+<script src="js/figures/best-of-n.js"></script>
+
 <script>
 /* ---------- TOC ---------- */
 (function(){const ul=document.querySelector('#toc ul');let cur=null;
@@ -619,99 +469,6 @@ addEventListener('scroll',()=>{const y=scrollY;h.classList.toggle('hidden',y>las
 const tip=document.getElementById('tip');
 function bindTip(el,text){el.addEventListener('mousemove',e=>{tip.textContent=text;tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-28+'px';tip.style.opacity=1});
 el.addEventListener('mouseleave',()=>tip.style.opacity=0)}
-
-/* ---------- Verifier vs judge: held-out score over training (3 seeds per arm) ---------- */
-(function(){
-  const el=document.getElementById('v3-chart');if(!el)return;
-  const SEEDS={"verifier":[[[0,0.5466],[5,0.5478],[10,0.5184],[15,0.5343],[20,0.5198],[25,0.5216],[30,0.5372],[35,0.5494],[40,0.5433],[45,0.5437],[50,0.5286],[55,0.5317],[60,0.5501],[65,0.5291],[70,0.543],[75,0.5525],[80,0.5501],[85,0.5491],[90,0.5556],[95,0.5589],[100,0.5711],[105,0.5804],[110,0.5985],[115,0.579],[120,0.5952],[125,0.5741],[130,0.5819],[135,0.5883],[140,0.616],[145,0.6159],[150,0.6313],[155,0.6196],[160,0.6396],[165,0.6397],[170,0.6315],[175,0.612],[180,0.6443],[185,0.6386],[190,0.6597],[195,0.6424],[200,0.6525],[205,0.6551],[210,0.6326],[215,0.6464],[220,0.6536],[225,0.646],[230,0.6541],[235,0.6702],[240,0.6519],[245,0.6435],[250,0.6526],[255,0.6571],[260,0.6519],[265,0.6581],[270,0.6528],[275,0.647],[280,0.677],[285,0.6559],[290,0.6687],[295,0.6731],[300,0.6685],[305,0.6824],[310,0.6917],[315,0.6982],[320,0.6902],[325,0.6912],[330,0.6884],[335,0.692],[340,0.6995],[345,0.6873],[350,0.6971],[355,0.6948],[360,0.7072],[365,0.7033],[370,0.6944],[375,0.7142],[380,0.6995],[385,0.7175],[390,0.7092],[395,0.7237],[400,0.7149]],[[0,0.5273],[10,0.5408],[20,0.5581],[30,0.5432],[40,0.5441],[50,0.538],[60,0.5206],[70,0.5545],[80,0.5549],[90,0.5699],[100,0.5742],[110,0.5794],[120,0.5819],[130,0.5938],[140,0.6054],[150,0.6039],[160,0.6168],[170,0.6218],[180,0.6284],[190,0.6418],[200,0.6713],[210,0.6682],[220,0.674],[230,0.7016],[240,0.7171],[250,0.6997],[260,0.7053],[270,0.6975],[280,0.7123],[290,0.7044],[300,0.6862],[310,0.6838],[320,0.6906],[330,0.7083],[340,0.6909],[350,0.6787],[360,0.703],[370,0.706],[380,0.7293],[390,0.723],[400,0.7213]],[[0,0.5425],[10,0.5489],[20,0.5498],[30,0.543],[40,0.5274],[50,0.5732],[60,0.5452],[70,0.5542],[80,0.5709],[90,0.5721],[100,0.5653],[110,0.585],[120,0.6104],[130,0.5984],[140,0.6177],[150,0.6222],[160,0.6345],[170,0.6344],[180,0.641],[190,0.6549],[200,0.6691],[210,0.6723],[220,0.6671],[230,0.6706],[240,0.6662],[250,0.6963],[260,0.7032],[270,0.6998],[280,0.6928],[290,0.6869],[300,0.7009],[310,0.7048],[320,0.7102],[330,0.7063],[340,0.6972],[350,0.7162],[360,0.715],[370,0.7161],[380,0.7178],[390,0.7353],[400,0.7248]]],"judge":[[[0,0.5369],[5,0.5453],[10,0.5339],[15,0.5369],[20,0.5295],[25,0.5369],[30,0.5218],[35,0.5158],[40,0.5306],[45,0.5476],[50,0.552],[55,0.5361],[60,0.5414],[65,0.5308],[70,0.54],[75,0.5474],[80,0.5409],[85,0.5532],[90,0.5543],[95,0.5651],[100,0.5511],[105,0.5531],[110,0.5777],[115,0.5671],[120,0.5676],[125,0.5814],[130,0.585],[135,0.5759],[140,0.5768],[145,0.5657],[150,0.5831],[155,0.5771],[160,0.5893],[165,0.6099],[170,0.5843],[175,0.6229],[180,0.6134],[185,0.6089],[190,0.596],[195,0.6091],[200,0.6173],[205,0.5873],[210,0.6084],[215,0.617],[220,0.6146],[225,0.6345],[230,0.6175],[235,0.6208],[240,0.6186],[245,0.6224],[250,0.6199],[255,0.6213],[260,0.6145],[265,0.6173],[270,0.6281],[275,0.6321],[280,0.6424],[285,0.6384],[290,0.6488],[295,0.6485],[300,0.6398],[305,0.65],[310,0.6529],[315,0.6618],[320,0.65],[325,0.6556],[330,0.6599],[335,0.656],[340,0.665],[345,0.656],[350,0.6483],[355,0.6701],[360,0.665],[365,0.6566],[370,0.6692],[375,0.6703],[380,0.666],[385,0.6827],[390,0.6848],[395,0.6698],[400,0.6849]],[[0,0.5463],[10,0.5515],[20,0.5507],[30,0.5424],[40,0.5429],[50,0.5538],[60,0.5378],[70,0.5593],[80,0.5501],[90,0.5619],[100,0.5748],[110,0.5866],[120,0.5965],[130,0.5968],[140,0.5971],[150,0.5916],[160,0.5828],[170,0.6019],[180,0.5966],[190,0.6144],[200,0.633],[210,0.6219],[220,0.6241],[230,0.629],[240,0.6558],[250,0.6206],[260,0.6285],[270,0.6325],[280,0.6435],[290,0.6627],[300,0.6547],[310,0.6604],[320,0.6741],[330,0.6856],[340,0.6861],[350,0.678],[360,0.6858],[370,0.6709],[380,0.6799],[390,0.6841],[400,0.6781]],[[0,0.5418],[10,0.5346],[20,0.5399],[30,0.5264],[40,0.558],[50,0.5357],[60,0.5541],[70,0.5529],[80,0.5788],[90,0.5679],[100,0.5586],[110,0.5803],[120,0.5928],[130,0.606],[140,0.6043],[150,0.5901],[160,0.6375],[170,0.6347],[180,0.6367],[190,0.6549],[200,0.6522],[210,0.648],[220,0.6431],[230,0.6601],[240,0.6618],[250,0.6249],[260,0.6252],[270,0.6304],[280,0.6335],[290,0.6296],[300,0.6427],[310,0.629],[320,0.6431],[330,0.6646],[340,0.6641],[350,0.6867],[360,0.6694],[370,0.6809],[380,0.6926],[390,0.691],[400,0.6952]]]}; // [step, score] pairs per seed
-  const ARMS=[['verifier','Verifier','ver'],['judge','Judge','jud']];
-  const W=720,H=360,m={l:34,r:86,t:30,b:40},X0=0,X1=500,Y0=.5,Y1=.77;
-  // Steps 410–500: mean of the 2 seeds that ran longer, traced from the report chart (approximate)
-  const AFTER={"verifier":[[410,0.7298],[420,0.7264],[430,0.7264],[440,0.7303],[450,0.7466],[460,0.7455],[470,0.7528],[480,0.7556],[490,0.7629],[500,0.7618]],"judge":[[410,0.6949],[420,0.6916],[430,0.6916],[440,0.7045],[450,0.7039],[460,0.6955],[470,0.6826],[480,0.6904],[490,0.6899],[500,0.6938]]};
-  const x=v=>m.l+(v-X0)/(X1-X0)*(W-m.l-m.r),y=v=>m.t+(1-(v-Y0)/(Y1-Y0))*(H-m.t-m.b);
-  const path=pts=>pts.map(([a,b],i)=>(i?'L':'M')+x(a).toFixed(1)+' '+y(b).toFixed(1)).join('');
-  // mean over the steps every seed has
-  const mean=arm=>{const maps=SEEDS[arm].map(s=>new Map(s));return SEEDS[arm][1].map(([k])=>k).filter(k=>maps.every(mp=>mp.has(k))).map(k=>[k,maps.reduce((t,mp)=>t+mp.get(k),0)/maps.length])};
-  const M={verifier:mean('verifier'),judge:mean('judge')};
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: mean held-out score from step 0 to 500. The verifier rises from about 0.54 to 0.76; the judge rises from about 0.54 to 0.69.">`;
-  [.5,.6,.7].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${v.toFixed(1)}</text>`);
-  s+=`<text class="cap" x="${m.l-8}" y="${m.t-16}">Held-out score</text>`;
-  [0,100,200,300,400,500].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
-  s+=`<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${H-m.b}" y2="${H-m.b}"/><text class="cap" x="${W-m.r}" y="${H-4}" text-anchor="end">Training step</text>`;
-  ARMS.forEach(([arm,,c])=>s+=`<path class="mean s-${c} draw" d="${path(M[arm].concat(AFTER[arm]))}"/>`);
-  // direct end labels, nudged apart if they collide
-  let ly=ARMS.map(([arm])=>y(AFTER[arm][AFTER[arm].length-1][1]));if(Math.abs(ly[0]-ly[1])<16){const c=(ly[0]+ly[1])/2;ly=[c-8,c+8]}
-  ARMS.forEach(([arm,label,c],i)=>{
-    s+=`<text class="end-lbl end-${c} fade" x="${x(X1)+16}" y="${ly[i]+4}">${label}</text>`});
-  // bracket + relative gap between the two lines at the final step
-  const vE=AFTER.verifier[AFTER.verifier.length-1][1],jE=AFTER.judge[AFTER.judge.length-1][1],bx=x(X1)+8;
-  s+=`<path class="gap fade" d="M${bx-3} ${y(vE)}H${bx}V${y(jE)}H${bx-3}"/><text class="gap-lbl fade" x="${x(X1)+16}" y="${(y(vE)+y(jE))/2+4}">+${Math.round((vE-jE)*100)}%</text>`;
-  s+=`<line class="guide" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}"/><circle class="dot ver" r="4"/><circle class="dot jud" r="4"/>`;
-  s+=`<rect class="hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/></svg>`;
-  el.innerHTML=s;
-  el.querySelectorAll('.draw').forEach(p=>p.style.setProperty('--len',p.getTotalLength()));
-  // hover: nearest shared step, readout of both means
-  const ALL={verifier:M.verifier.concat(AFTER.verifier),judge:M.judge.concat(AFTER.judge)};
-  const svg=el.querySelector('svg'),hit=el.querySelector('.hit'),guide=el.querySelector('.guide'),dv=el.querySelector('.dot.ver'),dj=el.querySelector('.dot.jud');
-  hit.addEventListener('mousemove',e=>{const b=svg.getBoundingClientRect(),sx=(e.clientX-b.left)/b.width*W;
-    const k=ALL.verifier.reduce((best,p)=>Math.abs(x(p[0])-sx)<Math.abs(x(best[0])-sx)?p:best)[0];
-    const v=ALL.verifier.find(p=>p[0]===k)[1],j=ALL.judge.find(p=>p[0]===k)[1];
-    guide.setAttribute('x1',x(k));guide.setAttribute('x2',x(k));guide.style.opacity=1;
-    dv.setAttribute('cx',x(k));dv.setAttribute('cy',y(v));dj.setAttribute('cx',x(k));dj.setAttribute('cy',y(j));dv.style.opacity=dj.style.opacity=1;
-    tip.textContent=`Step ${k} · verifier ${v.toFixed(3)} · judge ${j.toFixed(3)}${k>400?' (2 seeds, approx.)':''}`;tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-30+'px';tip.style.opacity=1});
-  hit.addEventListener('mouseleave',()=>{guide.style.opacity=dv.style.opacity=dj.style.opacity=tip.style.opacity=0});
-})();
-
-/* ---------- Tie rate over training (from the runs' metrics.jsonl, 20-step moving average) ---------- */
-(function(){
-  const el=document.getElementById('tie-chart');if(!el)return;
-  const D={"judge":[[0,0.125],[1,0.25],[2,0.2083],[3,0.2188],[4,0.2],[5,0.1905],[6,0.2347],[7,0.2366],[8,0.2381],[9,0.2268],[10,0.2175],[11,0.2098],[12,0.2321],[13,0.236],[14,0.2369],[15,0.2299],[16,0.2311],[17,0.2321],[18,0.2265],[19,0.2152],[20,0.2161],[21,0.2223],[22,0.2223],[23,0.2432],[24,0.2494],[25,0.2673],[26,0.261],[27,0.2673],[28,0.2735],[29,0.286],[30,0.2923],[31,0.311],[32,0.3074],[33,0.3098],[34,0.3045],[35,0.3107],[36,0.317],[37,0.3232],[38,0.317],[39,0.342],[40,0.3473],[41,0.3438],[42,0.35],[43,0.3354],[44,0.3479],[45,0.3354],[46,0.3167],[47,0.3042],[48,0.2917],[49,0.2854],[50,0.3015],[51,0.289],[52,0.2818],[53,0.2714],[54,0.283],[55,0.2768],[56,0.2643],[57,0.258],[58,0.2643],[59,0.2643],[60,0.2705],[61,0.2616],[62,0.2679],[63,0.2554],[64,0.2375],[65,0.2375],[66,0.25],[67,0.2687],[68,0.2687],[69,0.2687],[70,0.2402],[71,0.2402],[72,0.2509],[73,0.2571],[74,0.2759],[75,0.2759],[76,0.2884],[77,0.3045],[78,0.3107],[79,0.2857],[80,0.2732],[81,0.2795],[82,0.267],[83,0.2795],[84,0.2786],[85,0.2911],[86,0.2973],[87,0.2973],[88,0.3098],[89,0.3098],[90,0.3241],[91,0.3241],[92,0.3116],[93,0.3304],[94,0.3116],[95,0.3304],[96,0.3241],[97,0.308],[98,0.3143],[99,0.3393],[100,0.3455],[101,0.3393],[102,0.3393],[103,0.3393],[104,0.3455],[105,0.333],[106,0.3393],[107,0.3268],[108,0.3393],[109,0.3455],[110,0.35],[111,0.3563],[112,0.35],[113,0.3375],[114,0.3375],[115,0.3187],[116,0.325],[117,0.3438],[118,0.35],[119,0.3438],[120,0.3375],[121,0.3438],[122,0.35],[123,0.3438],[124,0.3396],[125,0.3458],[126,0.3333],[127,0.3271],[128,0.3083],[129,0.3083],[130,0.3021],[131,0.2958],[132,0.3021],[133,0.2958],[134,0.3021],[135,0.3146],[136,0.3271],[137,0.3021],[138,0.2896],[139,0.2708],[140,0.2771],[141,0.2708],[142,0.2771],[143,0.2771],[144,0.275],[145,0.2812],[146,0.2812],[147,0.2875],[148,0.2875],[149,0.2875],[150,0.2938],[151,0.3125],[152,0.3063],[153,0.3],[154,0.2875],[155,0.275],[156,0.25],[157,0.2625],[158,0.2625],[159,0.2687],[160,0.2687],[161,0.275],[162,0.275],[163,0.2687],[164,0.2875],[165,0.2875],[166,0.2875],[167,0.2938],[168,0.3],[169,0.2938],[170,0.3],[171,0.275],[172,0.2938],[173,0.3],[174,0.2875],[175,0.3],[176,0.3],[177,0.2938],[178,0.3063],[179,0.325],[180,0.3438],[181,0.35],[182,0.35],[183,0.3563],[184,0.35],[185,0.3438],[186,0.3438],[187,0.3625],[188,0.3625],[189,0.3812],[190,0.3625],[191,0.3688],[192,0.3563],[193,0.3563],[194,0.3688],[195,0.3812],[196,0.4062],[197,0.4062],[198,0.3937],[199,0.375],[200,0.3688],[201,0.3688],[202,0.3625],[203,0.35],[204,0.3375],[205,0.3438],[206,0.3563],[207,0.3375],[208,0.3438],[209,0.325],[210,0.3375],[211,0.325],[212,0.3312],[213,0.325],[214,0.3312],[215,0.325],[216,0.3187],[217,0.3187],[218,0.3187],[219,0.3312],[220,0.3125],[221,0.3],[222,0.3063],[223,0.3312],[224,0.3438],[225,0.3438],[226,0.3312],[227,0.3187],[228,0.3125],[229,0.3187],[230,0.3187],[231,0.3375],[232,0.3563],[233,0.3688],[234,0.3625],[235,0.3625],[236,0.3625],[237,0.375],[238,0.3937],[239,0.3875],[240,0.4],[241,0.4],[242,0.3937],[243,0.3937],[244,0.4],[245,0.4],[246,0.4062],[247,0.4375],[248,0.425],[249,0.4313],[250,0.425],[251,0.4313],[252,0.4188],[253,0.4125],[254,0.4062],[255,0.4],[256,0.3937],[257,0.3812],[258,0.375],[259,0.3937],[260,0.4],[261,0.4125],[262,0.425],[263,0.4188],[264,0.4062],[265,0.4],[266,0.3937],[267,0.3688],[268,0.3812],[269,0.3688],[270,0.3812],[271,0.375],[272,0.3625],[273,0.3688],[274,0.3812],[275,0.375],[276,0.3625],[277,0.375],[278,0.375],[279,0.3625],[280,0.3625],[281,0.35],[282,0.3563],[283,0.3563],[284,0.3625],[285,0.3688],[286,0.375]],"verifier":[[0,0.0],[1,0.0],[2,0.0],[3,0.0],[4,0.0],[5,0.0],[6,0.0],[7,0.0],[8,0.0],[9,0.0],[10,0.0],[11,0.0],[12,0.0],[13,0.0],[14,0.0],[15,0.0],[16,0.0],[17,0.0],[18,0.0],[19,0.0],[20,0.0],[21,0.0],[22,0.0],[23,0.0],[24,0.0],[25,0.0],[26,0.0],[27,0.0],[28,0.0],[29,0.0],[30,0.0],[31,0.0],[32,0.0],[33,0.0],[34,0.0],[35,0.0],[36,0.0],[37,0.0],[38,0.0],[39,0.0],[40,0.0],[41,0.0],[42,0.0],[43,0.0],[44,0.0],[45,0.0],[46,0.0],[47,0.0],[48,0.0],[49,0.0],[50,0.0],[51,0.0],[52,0.0],[53,0.0],[54,0.0],[55,0.0],[56,0.0],[57,0.0],[58,0.0],[59,0.0],[60,0.0],[61,0.0],[62,0.0],[63,0.0],[64,0.0],[65,0.0],[66,0.0],[67,0.0],[68,0.0],[69,0.0],[70,0.0],[71,0.0],[72,0.0],[73,0.0],[74,0.0],[75,0.0],[76,0.0],[77,0.0],[78,0.0],[79,0.0],[80,0.0],[81,0.0],[82,0.0],[83,0.0],[84,0.0],[85,0.0],[86,0.0],[87,0.0],[88,0.0],[89,0.0],[90,0.0],[91,0.0],[92,0.0],[93,0.0],[94,0.0],[95,0.0],[96,0.0],[97,0.0],[98,0.0],[99,0.0],[100,0.0],[101,0.0],[102,0.0],[103,0.0],[104,0.0],[105,0.0],[106,0.0],[107,0.0],[108,0.0],[109,0.0],[110,0.0],[111,0.0],[112,0.0],[113,0.0],[114,0.0],[115,0.0],[116,0.0],[117,0.0],[118,0.0],[119,0.0],[120,0.0],[121,0.0],[122,0.0],[123,0.0],[124,0.0],[125,0.0],[126,0.0],[127,0.0],[128,0.0],[129,0.0],[130,0.0],[131,0.0],[132,0.0],[133,0.0],[134,0.0],[135,0.0],[136,0.0],[137,0.0],[138,0.0],[139,0.0],[140,0.0],[141,0.0],[142,0.0],[143,0.0],[144,0.0],[145,0.0],[146,0.0],[147,0.0],[148,0.0],[149,0.0],[150,0.0],[151,0.0],[152,0.0],[153,0.0],[154,0.0],[155,0.0],[156,0.0],[157,0.0],[158,0.0],[159,0.0],[160,0.0],[161,0.0],[162,0.0],[163,0.0],[164,0.0],[165,0.0],[166,0.0],[167,0.0],[168,0.0],[169,0.0],[170,0.0],[171,0.0],[172,0.0],[173,0.0],[174,0.0],[175,0.0],[176,0.0],[177,0.0],[178,0.0],[179,0.0],[180,0.0],[181,0.0],[182,0.0],[183,0.0],[184,0.0],[185,0.0],[186,0.0],[187,0.0],[188,0.0],[189,0.0],[190,0.0],[191,0.0],[192,0.0],[193,0.0],[194,0.0],[195,0.0],[196,0.0],[197,0.0],[198,0.0],[199,0.0],[200,0.0],[201,0.0],[202,0.0],[203,0.0],[204,0.0],[205,0.0],[206,0.0],[207,0.0],[208,0.0],[209,0.0],[210,0.0],[211,0.0],[212,0.0],[213,0.0],[214,0.0],[215,0.0],[216,0.0],[217,0.0],[218,0.0],[219,0.0],[220,0.0],[221,0.0],[222,0.0],[223,0.0],[224,0.0],[225,0.0],[226,0.0],[227,0.0],[228,0.0],[229,0.0],[230,0.0],[231,0.0],[232,0.0],[233,0.0],[234,0.0],[235,0.0],[236,0.0],[237,0.0],[238,0.0],[239,0.0],[240,0.0],[241,0.0],[242,0.0],[243,0.0],[244,0.0],[245,0.0],[246,0.0],[247,0.0],[248,0.0],[249,0.0],[250,0.0],[251,0.0],[252,0.0],[253,0.0],[254,0.0],[255,0.0],[256,0.0],[257,0.0],[258,0.0],[259,0.0],[260,0.0],[261,0.0],[262,0.0],[263,0.0],[264,0.0],[265,0.0],[266,0.0],[267,0.0],[268,0.0],[269,0.0],[270,0.0],[271,0.0],[272,0.0],[273,0.0],[274,0.0],[275,0.0]]}; // [step, share of groups with a tied top score]
-  const ARMS=[['verifier','Verifier','ver'],['judge','Judge','jud']];
-  const W=720,H=320,m={l:34,r:86,t:30,b:40},X1=300,Y1=.5;
-  const x=v=>m.l+v/X1*(W-m.l-m.r),y=v=>m.t+(1-v/Y1)*(H-m.t-m.b);
-  const path=pts=>pts.map(([a,b],i)=>(i?'L':'M')+x(a).toFixed(1)+' '+y(b).toFixed(1)).join('');
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: share of groups with a tied top score. The judge rises from about 27 percent early in training to about 39 percent by step 286; the verifier stays at zero.">`;
-  [0,.2,.4].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`);
-  s+=`<text class="cap" x="${m.l-8}" y="${m.t-16}">Groups with a tied top score</text>`;
-  [0,100,200,300].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
-  s+=`<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${H-m.b}" y2="${H-m.b}"/><text class="cap" x="${W-m.r}" y="${H-4}" text-anchor="end">Training step</text>`;
-  ARMS.forEach(([arm,,c])=>s+=`<path class="mean s-${c} draw" d="${path(D[arm])}"/>`);
-  ARMS.forEach(([arm,label,c])=>{const last=D[arm][D[arm].length-1];
-    s+=`<text class="end-lbl end-${c} fade" x="${x(last[0])+8}" y="${y(last[1])+4}">${label}</text>`});
-  s+=`<line class="guide" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}"/><circle class="dot ver" r="4"/><circle class="dot jud" r="4"/>`;
-  s+=`<rect class="hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/></svg>`;
-  el.innerHTML=s;
-  el.querySelectorAll('.draw').forEach(p=>p.style.setProperty('--len',p.getTotalLength()));
-  const svg=el.querySelector('svg'),hit=el.querySelector('.hit'),guide=el.querySelector('.guide'),dv=el.querySelector('.dot.ver'),dj=el.querySelector('.dot.jud');
-  const at=(arm,k)=>{const p=D[arm].find(q=>q[0]===k);return p?p[1]:null};
-  hit.addEventListener('mousemove',e=>{const b=svg.getBoundingClientRect(),sx=(e.clientX-b.left)/b.width*W;
-    const k=Math.max(0,Math.min(D.judge[D.judge.length-1][0],Math.round((sx-m.l)/(W-m.l-m.r)*X1)));
-    const j=at('judge',k),v=at('verifier',k);
-    guide.setAttribute('x1',x(k));guide.setAttribute('x2',x(k));guide.style.opacity=1;
-    if(j!=null){dj.setAttribute('cx',x(k));dj.setAttribute('cy',y(j));dj.style.opacity=1}else dj.style.opacity=0;
-    if(v!=null){dv.setAttribute('cx',x(k));dv.setAttribute('cy',y(v));dv.style.opacity=1}else dv.style.opacity=0;
-    tip.textContent=`Step ${k} · judge ${j!=null?Math.round(j*100)+'%':'–'} · verifier ${v!=null?Math.round(v*100)+'%':'–'}`;
-    tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-30+'px';tip.style.opacity=1});
-  hit.addEventListener('mouseleave',()=>{guide.style.opacity=dv.style.opacity=dj.style.opacity=tip.style.opacity=0});
-})();
-
-/* ---------- RL pipeline: stages light up in turn, then the loop pulses back ---------- */
-(function(){
-  const root=document.getElementById('pipe2');if(!root)return;
-  const stages=[...root.querySelectorAll('.p2-stage')];
-  const show=all=>stages.forEach(s=>{s.classList.toggle('seen',all);s.classList.remove('on')});
-  if(matchMedia('(prefers-reduced-motion:reduce)').matches){show(true);return}
-  const STEP=1400,LOOP=1600;let i=-1,timer=0,visible=false;
-  function tick(){
-    if(!visible)return;
-    i++;
-    if(i<stages.length){stages.forEach((s,k)=>s.classList.toggle('on',k===i));stages[i].classList.add('seen');root.classList.remove('looping');timer=setTimeout(tick,STEP)}
-    else if(i===stages.length){stages.forEach(s=>s.classList.remove('on'));root.classList.add('looping');timer=setTimeout(tick,LOOP)}
-    else{root.classList.remove('looping');show(false);i=0;stages[1].classList.add('seen','on');stages[0].classList.add('seen');i=1;timer=setTimeout(tick,STEP)} // next cycle starts at the updated model
-  }
-  new IntersectionObserver(es=>es.forEach(en=>{visible=en.isIntersecting;clearTimeout(timer);if(visible){show(false);root.classList.remove('looping');i=-1;tick()}}),{threshold:.3}).observe(root);
-  show(true); // fully drawn until it scrolls into view
-})();
 
 /* ---------- Reveal charts when scrolled into view ---------- */
 (function(){const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('is-revealed');io.unobserve(e.target)}}),{threshold:.35});
