@@ -17,8 +17,8 @@
   const FILE = 'flower.js';
   const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const label = c => c.name === 'background' ? 'background' : 'brush.' + c.name;
-  // pace: every duration of the timeline × K, then the finished painting holds
-  const K = 1, HOLD = 4.5;
+  // pace: every duration of the original timeline × K (the loop was ~21.7 s, now ~15.5 s), then the finished painting holds
+  const K = .7, HOLD = 3.5;
 
   const view = document.createElement('canvas'), over = document.createElement('canvas');
   view.className = 'tk-view'; over.className = 'tk-over'; view.setAttribute('aria-hidden', 'true'); over.setAttribute('aria-hidden', 'true');
