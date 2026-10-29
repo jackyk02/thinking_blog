@@ -17,6 +17,7 @@
   const EV = DV.map(p => p.reduce((e, v, g) => e + v * (g + 1), 0)), PMAX = Math.max(...DV.flat());
   const order = EV.map((_, i) => i).sort((a, b) => EV[a] - EV[b]);
   const SLIDE = 1150, STAG = 110; // ms: the verifier marks' slide, and the beat between columns
+  const RM = reduced() || !window.Painter;
 
   const rows = [
     { cls: 'j', label: 'Judge', G: GJ, p: i => Array.from({ length: GJ }, (_, g) => g === P.judge[i] - 1 ? 1 : 0), m: i => P.judge[i], fmt: v => String(Math.round(v)) },
@@ -27,8 +28,11 @@
     r.lab = stage.appendChild(h('span', { class: 'fx-k fx-jt-l ' + r.cls }, r.label));
     r.cells = order.map((i, c) => {
       const svg = s('svg', { class: 'fx-jt-h', 'aria-hidden': 'true' });
-      const el = stage.appendChild(h('div', { class: 'fx-jt-c ' + r.cls, style: { '--c': c } }, paint(P.imgs[i], '', { 'aria-hidden': 'true' }), svg));
-      return { el, svg, i, c, txt: null };
+      // each painting is a frame like the training figure's: the finished image, and a canvas that paints it the first time
+      const src = P.imgs[i], cv = RM ? null : h('canvas', { 'aria-hidden': 'true' });
+      const fr = h('div', { class: 'fx-pv fx-jt-p' + (RM ? ' done' : '') }, paint(src, '', { 'aria-hidden': 'true' }), cv);
+      const el = stage.appendChild(h('div', { class: 'fx-jt-c ' + r.cls, style: { '--c': c } }, fr, svg));
+      return { el, svg, i, c, txt: null, fr, cv, src };
     });
   });
   stage.setAttribute('aria-label', `Four watercolor daisies from one prompt. The judge gives all four the same score, ${P.judge[0]} of ${GJ}. ` +
@@ -78,8 +82,27 @@
   }
 
   // s1: the judge row lands; s2: the verifier's paintings and marks appear at the judge's spot; s3: they slide apart
-  let timers = [], busy = false, seen = false;
+  let timers = [], busy = false, seen = false, painted = RM;
+  // first view: each row's frames show blank paper and the paintings paint themselves, column by column, like the
+  // training figure (js/painter.js); the judge's scores land once its row is painted, then the verifier's row paints
+  const paintRow = (r, speed, step) => Promise.all(r.cells.map(cell => {
+    const job = Painter.paint(cell.cv, cell.src, { speed, delay: cell.c * step });
+    return job.done.then(() => Painter.load(cell.src)).catch(() => {}).then(() => cell.fr.classList.add('done'));
+  }));
+  function firstPlay() {
+    busy = true;
+    stage.classList.add('reset'); stage.classList.remove('f1', 'f2', 's1', 's2', 's3'); draw(); void stage.offsetWidth; stage.classList.remove('reset');
+    stage.classList.add('f1');
+    paintRow(rows[0], 1.5, .32)
+      .then(() => { stage.classList.add('s1'); return new Promise(res => timers.push(setTimeout(res, 1100))) })
+      .then(() => { stage.classList.add('f2'); return paintRow(rows[1], 2, .22) })
+      .then(() => {
+        painted = true; stage.classList.add('s2');
+        timers.push(setTimeout(() => { stage.classList.add('s3'); countUp() }, 600), setTimeout(() => { busy = false }, 2600));
+      });
+  }
   function play() {
+    if (!painted) return firstPlay();
     timers.forEach(clearTimeout); timers = []; if (count) { count(); count = null }
     if (reduced()) { stage.classList.add('s1', 's2', 's3'); draw(); return }
     busy = true;
@@ -93,6 +116,10 @@
   stage.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (seen) play() } });
 
   responsive(stage, draw);
+  if (!RM) {
+    const pre = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pre.disconnect(); rows[0].cells.forEach(cell => Painter.prefetch(cell.src, cell.cv)) } }, { rootMargin: '700px 0px' });
+    pre.observe(stage);
+  }
   if (reduced()) { seen = true; play() }
   else onVisible(stage, () => { seen = true; play() }, .45);
 })();

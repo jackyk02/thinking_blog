@@ -83,8 +83,9 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-jt-l{text-align:right;line-height:14px}
 .fx-jt-l.j{color:var(--fx-jud)}.fx-jt-l.v{color:var(--fx-ver)}
 .fx-jt-c{min-width:0}
-.fx-jt-c>.fx-paint{opacity:0;transform:translateY(8px);transition:opacity .6s var(--fx-ease),transform .7s var(--fx-ease);transition-delay:calc(var(--c) * 70ms)}
-.fx-jt.s1 .fx-jt-c.j>.fx-paint,.fx-jt.s2 .fx-jt-c.v>.fx-paint{opacity:1;transform:none}
+.fx-jt-p{width:100%;aspect-ratio:1}
+.fx-jt-c>.fx-jt-p{opacity:0;transform:translateY(8px);transition:opacity .6s var(--fx-ease),transform .7s var(--fx-ease);transition-delay:calc(var(--c) * 70ms)}
+.fx-jt.f1 .fx-jt-c.j>.fx-jt-p,.fx-jt.s1 .fx-jt-c.j>.fx-jt-p,.fx-jt.f2 .fx-jt-c.v>.fx-jt-p,.fx-jt.s2 .fx-jt-c.v>.fx-jt-p{opacity:1;transform:none}
 .fx-jt-h{margin-top:10px;opacity:0;transition:opacity .5s var(--fx-ease)}
 .fx-jt.s1 .fx-jt-c.j .fx-jt-h,.fx-jt.s2 .fx-jt-c.v .fx-jt-h{opacity:1}
 .fx-jt-h .slot{stroke:var(--rule);stroke-width:1.2}
