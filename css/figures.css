@@ -73,31 +73,42 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-tr .gap{fill:none;stroke:var(--fg5);stroke-width:1.2}
 
 /* ---------- 2 · the judge's tie, and what the verifier sees ---------- */
-.fx-jt{position:relative;outline:none;cursor:default;-webkit-tap-highlight-color:transparent}
-.fx-jt-svg{position:absolute;left:0;top:0}
-.fx-jt-svg .tick{stroke:var(--rule)}
-.fx-jt-svg text.at{fill:var(--fg3)}
-.fx-jt-l{position:absolute;left:0;transform:translateY(-50%)}
+/* two rows of the same four paintings in shared columns; under each, its scale, its distribution and its score */
+.fx-jt{display:grid;grid-template-columns:62px repeat(4,minmax(0,1fr));column-gap:14px;row-gap:22px;align-items:start;outline:none;cursor:default;-webkit-tap-highlight-color:transparent}
+.fx-jt-l{text-align:right;line-height:14px}
 .fx-jt-l.j{color:var(--fx-jud)}.fx-jt-l.v{color:var(--fx-ver)}
-.fx-jt-p{position:absolute;box-shadow:0 0 0 1px var(--fx-ring),0 1px 6px rgba(0,0,0,.18);will-change:transform,opacity;
-  transition:transform .6s var(--fx-ease),opacity .45s var(--fx-ease);transition-delay:var(--d,0ms)}
-/* judge: the paintings drop onto one spot and stay there, fanned like a stack of cards */
-.fx-jt-p.j{opacity:0;transform:translate(var(--dx),-28px) rotate(var(--r))}
-.fx-jt.s1 .fx-jt-p.j{opacity:1;transform:translate(var(--dx),0) rotate(var(--r))}
-.fx-jt-svg .spike{fill:var(--fx-jud);transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);transition:transform .6s var(--fx-ease) .45s}
-.fx-jt.s1 .spike{transform:none}
-.fx-jt-svg .at{opacity:0;transition:opacity .4s .7s}
-.fx-jt.s1 .at{opacity:1}
-/* verifier: the same paintings come down from that pile, then slide apart to their own scores */
-.fx-jt-p.v{opacity:0;transform:translate(var(--dx),var(--lift)) rotate(var(--r))}
-.fx-jt.s2 .fx-jt-p.v{opacity:1;transform:translate(var(--dx),0) rotate(var(--r));transition-duration:.7s,.5s}
-.fx-jt.s3 .fx-jt-p.v{transform:translate(var(--tx),0) rotate(0deg);transition:transform 1.15s var(--fx-ease-io),opacity .5s;transition-delay:var(--d2,0ms)}
-.fx-jt-svg .glow{fill:url(#fx-jt-glow);transform-box:fill-box;transform-origin:50% 100%;opacity:0;transform:scaleY(.15);
-  transition:opacity .8s var(--fx-ease),transform .9s var(--fx-ease);transition-delay:calc(var(--d,0ms) + .55s)}
-.fx-jt.s3 .glow{opacity:1;transform:none}
-.fx-jt-svg .ev{fill:var(--fx-ver);stroke:var(--bg);stroke-width:1.5;opacity:0;transition:opacity .4s;transition-delay:calc(var(--d,0ms) + .9s)}
-.fx-jt.s3 .ev{opacity:1}
+.fx-jt-c{min-width:0}
+.fx-jt-c>.fx-paint{opacity:0;transform:translateY(8px);transition:opacity .6s var(--fx-ease),transform .7s var(--fx-ease);transition-delay:calc(var(--c) * 70ms)}
+.fx-jt.s1 .fx-jt-c.j>.fx-paint,.fx-jt.s2 .fx-jt-c.v>.fx-paint{opacity:1;transform:none}
+.fx-jt-h{margin-top:10px;opacity:0;transition:opacity .5s var(--fx-ease)}
+.fx-jt.s1 .fx-jt-c.j .fx-jt-h,.fx-jt.s2 .fx-jt-c.v .fx-jt-h{opacity:1}
+.fx-jt-h .slot{stroke:var(--rule);stroke-width:1.2}
+.fx svg.fx-jt-h text.end{font-size:9.5px;fill:var(--fg5)}
+.fx svg.fx-jt-h text.val{font-family:var(--font-sans);font-size:15px;letter-spacing:0;font-weight:500;font-variant-numeric:tabular-nums}
+.fx-jt-c.j text.val{fill:var(--fx-jud)}.fx-jt-c.v text.val{fill:var(--fx-ver)}
+.fx-jt-h .bar{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0);transition:transform .6s var(--fx-ease);transition-delay:var(--d)}
+.fx-jt-c.j .bar{fill:var(--fx-jud)}.fx-jt-c.v .bar{fill:color-mix(in srgb,var(--fx-ver) 80%,transparent)}
+.fx-jt-h .dot{stroke:var(--bg);stroke-width:1.5}
+.fx-jt-c.j .dot{fill:var(--fx-jud)}.fx-jt-c.v .dot{fill:var(--fx-ver)}
+.fx-jt-h .tie{stroke:var(--fx-jud);stroke-width:1;opacity:0;transition:opacity .5s var(--fx-ease) .75s}
+/* judge: everything lands at once, the same in every column */
+.fx-jt.s1 .fx-jt-c.j .bar{transform:none}
+.fx-jt-h .mk{opacity:0;transform:translateX(var(--dx));transition:opacity .45s var(--fx-ease),transform 1.15s var(--fx-ease-io);transition-delay:.5s,0s}
+.fx-jt.s1 .fx-jt-c.j .mk{opacity:1}
+.fx-jt.s1 .fx-jt-h .tie{opacity:.55}
+/* verifier: the dots appear where the judge's are, then slide apart to their own scores as the distributions rise
+   and the scores count up beside them */
+.fx-jt.s2 .fx-jt-c.v .dot{opacity:1;transition-delay:.25s,0s}
+.fx-jt.s3 .fx-jt-c.v .mk{opacity:1;transform:none;transition-delay:var(--d),var(--d)}
+.fx-jt.s3 .fx-jt-c.v .bar{transform:none}
 .fx-jt.reset *{transition:none!important}
+@media (max-width:560px){
+  .fx-jt{grid-template-columns:repeat(4,minmax(0,1fr));column-gap:10px;row-gap:8px}
+  .fx-jt-l{grid-column:1/-1;text-align:left}
+  .fx-jt-l.v{margin-top:14px}
+  .fx svg.fx-jt-h text.val{font-size:13px}
+  .fx-jt-h{margin-top:8px}
+}
 
 /* ---------- 3 · break the tie (granularity, repeats, criteria) ---------- */
 .fx-bt-ctrl{display:flex;gap:8px;flex-wrap:wrap}
