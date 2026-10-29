@@ -40,7 +40,6 @@ a{color:inherit}
 .site-header{position:fixed;inset:0 0 auto 0;height:var(--header-h);background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem;transition:transform .3s ease}
 .site-header.hidden{transform:translateY(-100%)}
 .logo{font-family:var(--font-sans);font-size:17px;font-weight:500;letter-spacing:-.01em;text-decoration:none;display:flex;align-items:center;gap:.5rem}
-.logo-mark{width:18px;height:18px}
 .top-nav{display:flex;gap:1.75rem;font-family:var(--font-sans);font-size:15px}
 .top-nav a{text-decoration:none;color:var(--fg1);letter-spacing:-.01em}
 .top-nav a:hover{opacity:.6}
@@ -114,29 +113,7 @@ figcaption b{color:var(--fg2);font-weight:500}
 #tie-chart text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
 #tie-chart .cap{text-transform:uppercase;letter-spacing:.08em}
 #tie-chart .end-lbl{font-family:var(--font-sans);font-size:13px;letter-spacing:0;font-weight:500}
-#tie-chart .end-ver{fill:var(--verifier)}#tie-chart .end-jud{fill:var(--judge)}
 @media (max-width:620px){#tie-chart text{font-size:19px}#tie-chart .end-lbl{font-size:17px}}
-
-/* Flow diagram */
-.flow{display:flex;align-items:stretch;gap:.5rem;font-family:var(--font-sans);font-size:13px;flex-wrap:wrap;justify-content:center}
-.flow .node{border:1px solid var(--rule);background:var(--panel);border-radius:6px;padding:.7rem .85rem;flex:1 1 120px;text-align:center;line-height:1.35}
-.flow .node small{display:block;color:var(--fg4);font-size:11.5px;margin-top:.2rem}
-.flow .node.accent{border-color:var(--azure);background:color-mix(in srgb,var(--azure) 8%,var(--bg))}
-.flow .arrow{align-self:center;color:var(--fg5)}
-@media (max-width:560px){.flow{flex-direction:column}.flow .arrow{transform:rotate(90deg)}}
-
-/* Comparison panels */
-.compare{font-family:var(--font-sans);font-size:13px;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
-.compare .q{padding:.8rem 1rem;background:var(--panel);border-bottom:1px solid var(--rule);color:var(--fg1)}
-.compare .q b{font-weight:500;color:var(--fg4);text-transform:uppercase;letter-spacing:.06em;font-size:10.5px;display:block;margin-bottom:.2rem}
-.compare .panels{display:grid;grid-template-columns:1fr 1fr}
-.compare .panel{padding:.8rem 1rem}
-.compare .panel+.panel{border-left:1px solid var(--rule)}
-.compare .tag{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;margin-bottom:.4rem;color:var(--emerald)}
-.compare .bad .tag{color:var(--red)}
-.compare pre{margin:0;font-family:var(--font-mono);font-size:12px;line-height:1.55;white-space:pre-wrap;color:var(--fg1)}
-.compare .note{padding:.7rem 1rem;border-top:1px solid var(--rule);color:var(--fg3);background:color-mix(in srgb,var(--red) 5%,var(--bg))}
-@media (max-width:600px){.compare .panels{grid-template-columns:1fr}.compare .panel+.panel{border-left:0;border-top:1px solid var(--rule)}}
 
 /* Tables */
 .table-wrap{overflow-x:auto;margin:2rem 0}
@@ -147,14 +124,11 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 tr.hi td{font-weight:600}
 .table-title{font-family:var(--font-sans);font-size:14px;font-weight:600;color:var(--fg);margin-bottom:2px}
 .table-sub{font-family:var(--font-sans);font-size:13px;color:var(--fg4);margin-bottom:10px}
-.table-caption{font-family:var(--font-sans);font-size:var(--caption);color:var(--fg4);margin-top:.7rem}
 @media (max-width:600px){th,td{padding:.5rem .35rem}th{font-size:10.5px;letter-spacing:.02em}}
 
 /* Citation */
 .cite{position:relative;background:var(--code-bg);border-radius:6px;padding:1rem 1.1rem;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre;overflow-x:auto}
 .copy{position:absolute;top:.5rem;right:.5rem;font-family:var(--font-sans);font-size:12px;background:var(--bg);border:1px solid var(--rule);color:var(--fg2);border-radius:4px;padding:.2rem .55rem;cursor:pointer}
-.footnotes{border-top:1px solid var(--rule);margin-top:3rem;padding-top:1rem;font-family:var(--font-sans);font-size:13px;color:var(--fg3)}
-.footnotes ol{padding-left:1.2em}
 
 .paginator{display:flex;justify-content:space-between;margin-top:3.5rem;font-family:var(--font-sans);font-size:14px}
 .paginator a{text-decoration:none;color:var(--fg4)}
@@ -211,35 +185,23 @@ footer{margin-top:9rem;padding-bottom:1.75rem;color:var(--fg4);font-family:var(-
 
 /* ---- Chart reveal animations ---- */
 @keyframes bar-in{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-@keyframes hbar-in{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 @keyframes pop-in{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:scale(1)}}
 @keyframes fade-in{from{opacity:0}to{opacity:1}}
 .chart .bar{transform-box:fill-box;transform-origin:50% 100%;transform:scaleY(0)}
-.chart .hbar{transform-box:fill-box;transform-origin:0 50%;transform:scaleX(0)}
 .chart .pt{transform-box:fill-box;transform-origin:center;opacity:0}
 .chart .fade{opacity:0}
 .chart.is-revealed .bar{animation:bar-in .36s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 25ms)}
-.chart.is-revealed .hbar{animation:hbar-in .36s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 25ms)}
 .chart.is-revealed .pt{animation:pop-in .36s cubic-bezier(.2,.9,.25,1.25) both;animation-delay:calc(var(--i,0) * 60ms)}
 .chart.is-revealed .fade{animation:fade-in .24s both;animation-delay:calc(var(--i,0) * 60ms + .13s)}
 .chart .human{stroke:var(--emerald);stroke-dasharray:5 4}
 .chart .seed{fill:none;stroke-width:1.1;opacity:.28}
-figure.right-wide{margin-left:0}
-
-@media (min-width:1180px){figure.right-wide{margin-right:-180px}}
 .chart .mean{fill:none;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
-.chart .s-ver{stroke:var(--verifier,var(--fx-ver))}.chart .s-jud{stroke:var(--judge,var(--fx-jud))}
-.chart .end-lbl{font-size:12px;font-weight:500}.chart .end-ver{fill:var(--verifier,var(--fx-ver))}.chart .end-jud{fill:var(--judge,var(--fx-jud))}
+.chart .end-lbl{font-size:12px;font-weight:500}
 .chart .guide{stroke:var(--fg5);stroke-dasharray:3 3;opacity:0}
 .chart .dot{opacity:0}.chart .dot.ver{fill:var(--verifier,var(--fx-ver))}.chart .dot.jud{fill:var(--judge,var(--fx-jud))}
 .chart .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
 .chart.is-revealed .draw{transition:stroke-dashoffset 1.4s cubic-bezier(.65,0,.35,1);stroke-dashoffset:0}
-.chart .human-lbl{fill:var(--emerald)}
-@media (prefers-reduced-motion:reduce){.chart .bar,.chart .hbar,.chart .pt,.chart .fade{animation:none!important;opacity:1;transform:none}}
-.flow.stack{flex-direction:column;align-items:stretch}
-.flow .row{display:flex;gap:.5rem;align-items:stretch;flex-wrap:wrap}
-.flow .stage{flex:1 1 100px}
-.flow-label{font-family:var(--font-sans);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg4);text-align:center;margin:.3rem 0}
+@media (prefers-reduced-motion:reduce){.chart .bar,.chart .pt,.chart .fade{animation:none!important;opacity:1;transform:none}}
 </style>
 <link rel="stylesheet" href="css/figures.css">
 </head>
@@ -259,7 +221,7 @@ figure.right-wide{margin-left:0}
   <div class="post-heading">
     <h1 class="post-title">Scaling RL for Creative Tasks with Self-Verification</h1>
     <div class="publish-metadata">
-      <span class="author">Jacky Kwok, Surya Narreddi, Neal Wu, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
+      <span class="author">Jacky Kwok, Surya Narreddi, Neal Wu, Cameron Franz, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
     </div>
   </div>
 
@@ -332,11 +294,6 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
       <div class="eq-box">\[ R(x, \tau) = \frac{1}{CK} \sum_{c=1}^{C} \sum_{k=1}^{K} \sum_{g=1}^{G} p_{\theta}(v_g \mid x, c, \tau)\,\phi(v_g) \]</div>
       <p>where \(C\) is the number of evaluation criteria, \(K\) is the number of repeated verifications, \(G\) is the number of score tokens (granularity level), \(p_{\theta}(v_g \mid x, c, \tau)\) is the probability assigned by model \(\theta\) to score token \(v_g\), and \(\phi(v_g)\) maps each score token to a scalar value. See <a href="https://llm-as-a-verifier.com/" target="_blank" rel="noopener">llm-as-a-verifier.com</a> for details.</p>
 
-      <figure class="fx" id="fig-break-tie">
-        <div id="fx-break-tie"></div>
-        <figcaption>One group of five. Dot: reward. Band: how far it moves when re-scored. Grey line: a tie.</figcaption>
-      </figure>
-
       <h2 id="rl-training-pipeline">RL Training Pipeline</h2>
       <p>Given a text prompt (e.g., “a pear in watercolor”), Inkling-Small generates a JavaScript sketch using the p5.brush library. The sketch is executed in a sandboxed Puppeteer environment to produce a rendered PNG image. The resulting painting is then evaluated by the same model, Inkling-Small, through LLM-as-a-Verifier, which assigns fine-grained scores to assess its visual quality and alignment with the input prompt. These scores are normalized within each group and used to optimize the model via GRPO.</p>
 
@@ -398,10 +355,10 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 
       <h2 id="citation">Citation</h2>
       <p>Please cite this work as:</p>
-      <p>Kwok, Jacky, Surya Narreddi, Neal Wu and Simon Guo, “Scaling RL for Creative Tasks with Self-Verification”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
+      <p>Kwok, Jacky, Surya Narreddi, Neal Wu, Cameron Franz and Simon Guo, “Scaling RL for Creative Tasks with Self-Verification”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
       <p>BibTeX:</p>
       <div class="cite" id="cite"><button class="copy" onclick="copyCite(this)">Copy</button>@article{kwok2026creative,
-  author = {Kwok, Jacky and Narreddi, Surya and Wu, Neal and Guo, Simon},
+  author = {Kwok, Jacky and Narreddi, Surya and Wu, Neal and Franz, Cameron and Guo, Simon},
   title = {Scaling RL for Creative Tasks with Self-Verification},
   journal = {Thinking Machines Lab: Connectionism},
   year = {2026},
@@ -446,7 +403,6 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 <script src="js/figures/training.js"></script>
 <script src="js/figures/judge-tie.js"></script>
 <script src="js/figures/tie-rate.js"></script>
-<script src="js/figures/break-tie.js"></script>
 <script src="js/figures/pipeline.js"></script>
 <script src="js/figures/grpo-tie.js"></script>
 <script src="js/figures/gallery.js"></script>

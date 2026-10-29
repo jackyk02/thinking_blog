@@ -51,9 +51,6 @@ window.FX = (function () {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const tag = text => h('span', { class: 'fx-tag', title: 'Not measured yet: replace with real data before publishing' }, text || 'placeholder data');
   const paint = (src, alt, a) => h('img', Object.assign({ class: 'fx-paint', src, alt: alt || '', width: 420, height: 420, loading: 'lazy', decoding: 'async' }, a || {}));
-  /* deterministic random numbers for the simulated figure */
-  function rng(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
-  const gauss = r => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
   /* pause / play icon button, styled like the cover's; with `label`, a small pill that also says "Pause" / "Play" */
   const PAUSE = 'M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z', PLAY = 'M4 2l8 5-8 5z';
   function playButton(onClick, label) {
@@ -63,5 +60,5 @@ window.FX = (function () {
     b.addEventListener('click', onClick);
     return b;
   }
-  return { h, s, clamp, reduced, ease, responsive, onVisible, watch, tween, wait, tag, paint, rng, gauss, playButton };
+  return { h, s, clamp, reduced, ease, responsive, onVisible, watch, tween, wait, tag, paint, playButton };
 })();

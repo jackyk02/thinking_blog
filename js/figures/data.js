@@ -43,10 +43,5 @@ window.FIG = {
     human: { judge: { agree: 52, tie: 18 }, verifier: { agree: 68, tie: 0 } },
     /* Best-of-N: held-out score of the pick. Needs: ~50 held-out prompts × 32 samples, judge + verifier + Kimi score for each sample. */
     bestOfN: { n: [1,2,4,8,16,32], random: [0.72,0.72,0.72,0.72,0.72,0.72], judge: [0.72,0.738,0.748,0.752,0.754,0.755], verifier: [0.72,0.748,0.768,0.782,0.792,0.798] }
-  },
-  /* ---------- SIMULATED: the "break the tie" figure. Each painting has a true quality per criterion; each verifier
-     call adds noise and spreads probability over nearby score tokens. Real version: log the verifier's token
-     probabilities for one group at C = 3, K = 4, G = 20 and subsample. ---------- */
-  sim: { quality: [[0.64,0.58,0.58],[0.70,0.76,0.76],[0.45,0.48,0.42],[0.68,0.70,0.66],[0.66,0.62,0.64]], noise: 0.05, spread: 0.07,
-    base: { G: 10, K: 1, C: 1 }, full: { G: 20, K: 4, C: 3 } }
+  }
 };

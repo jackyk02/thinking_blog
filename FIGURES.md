@@ -15,7 +15,6 @@ Figures tagged "placeholder data" on the page use stand-in numbers until the rea
 | Figure | Needs |
 |---|---|
 | Judge vs. verifier (four daisies) | The judge's scores and the verifier's 20 score-token probabilities for these four paintings |
-| Break the tie | Verifier score-token probabilities from a multi-sample run (now simulated) |
 | RL training pipeline | One logged training group: paintings, verifier scores, advantages, and the pear's sketch |
 | Ties give GRPO no signal | The same logged group, scored by both the judge and the verifier |
 | Human preference *(proposed section)* | Judge and verifier agreement and tie rate on the expert preference pairs |

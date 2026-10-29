@@ -9,7 +9,6 @@
   --fx-mono:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Consolas,'Liberation Mono',monospace;
   --fx-ease:cubic-bezier(.22,1,.36,1); --fx-ease-io:cubic-bezier(.65,0,.35,1);
   --fx-ring:color-mix(in srgb,var(--fg) 8%,transparent);
-  --fx-band:color-mix(in srgb,var(--fg) 11%,transparent);
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fx-ver:#4FAE80;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}}
 :root[data-theme="dark"]{--fx-ver:#4FAE80;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}
@@ -36,12 +35,6 @@ figure.fx>figcaption{margin-top:1rem}
 .fx-tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--fx-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--fx-ph);border:1px dashed color-mix(in srgb,var(--fx-ph) 55%,transparent);border-radius:999px;padding:3px 9px 3px 8px;line-height:1.2;white-space:nowrap}
 .fx-tag::before{content:"";width:5px;height:5px;border-radius:1px;background:var(--fx-ph)}
 /* small round pill buttons, same feel as the cover's controls */
-.fx-pill{font:500 12.5px/1.3 var(--font-sans);border:1px solid var(--rule);background:var(--bg);color:var(--fg3);border-radius:999px;padding:4px 12px;cursor:pointer;transition:background .35s var(--fx-ease),color .35s var(--fx-ease),border-color .35s var(--fx-ease)}
-.fx-pill:hover{color:var(--fg);border-color:var(--fg5)}
-.fx-pill::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;box-shadow:inset 0 0 0 1.3px currentColor;margin-right:7px;vertical-align:.5px;transition:background .35s var(--fx-ease),box-shadow .35s var(--fx-ease)}
-.fx-pill[aria-pressed="true"]{color:var(--fg);border-color:var(--fg4)}
-.fx-pill[aria-pressed="true"]::before{background:var(--fx-ver);box-shadow:none}
-.fx-pill i{font-family:var(--font-serif);font-style:italic;font-weight:400;margin-left:3px}
 .fx :focus-visible{outline:2px solid var(--fg3);outline-offset:2px;border-radius:4px}
 .fx-btn{width:24px;height:24px;border-radius:50%;border:0;background:var(--code-bg);color:var(--fg3);display:grid;place-items:center;cursor:pointer;padding:0;flex:0 0 auto}
 .fx-btn svg{width:11px;height:11px}
@@ -115,21 +108,6 @@ figure.fx>figcaption{margin-top:1rem}
   .fx svg.fx-jt-h text.val{font-size:13px}
   .fx-jt-h{margin-top:8px}
 }
-
-/* ---------- 3 · break the tie (granularity, repeats, criteria) ---------- */
-.fx-bt-ctrl{display:flex;gap:8px;flex-wrap:wrap}
-.fx-bt{position:relative}
-.fx-bt svg.grid-layer{position:absolute;left:0;top:0;pointer-events:none}
-.fx-bt .lvl{stroke:var(--rule);transition:opacity .6s var(--fx-ease)}
-.fx-bt-row{position:relative;display:flex;align-items:center}
-.fx-bt-row .fx-paint{flex:0 0 auto}
-.fx-bt-track{position:absolute;top:0;bottom:0}
-.fx-bt-band{position:absolute;top:50%;height:8px;margin-top:-4px;border-radius:4px;background:var(--fx-band);transition:left .8s var(--fx-ease),width .8s var(--fx-ease)}
-.fx-bt-dot{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--fx-ver);box-shadow:0 0 0 2px var(--bg);transition:left .8s var(--fx-ease),background .5s}
-.fx-bt-dot.tied{background:var(--fx-jud)}
-.fx-bt-tie{position:absolute;width:0;border-left:1.5px solid var(--fx-jud);transition:opacity .45s;pointer-events:none}
-.fx-bt-axis{position:relative;height:30px}
-.fx-bt-axis svg{position:absolute;left:0;top:0}
 
 /* ---------- 4 · RL pipeline: Jacky's row of boxes, played left to right (js/figures/pipeline.js) ---------- */
 .fx-pp{--bh:168px;--lh:16px;--gap:24px;position:relative;padding-bottom:44px}
