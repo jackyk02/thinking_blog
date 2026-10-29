@@ -1,16 +1,18 @@
 /* Figures (branch sn/figures).
    Shared tokens + one block per figure. Colours come from the page tokens (--fg*, --rule, --panel, --code-bg);
-   red = LLM-as-a-Verifier, grey = LLM-as-a-Judge, amber = anything that is not a measured number. */
+   green = LLM-as-a-Verifier (the better reward), grey = LLM-as-a-Judge, amber = anything that is not a measured number.
+   --fx-ver: #1F7A4D on light (5.3:1 on --bg, 4.8:1 on --panel), #4FAE80 on dark (6.6:1 on --bg, 5.9:1 on --panel).
+   The tie-rate chart in index.html reads the same tokens. */
 
 :root{
-  --fx-ver:#8C1515; --fx-jud:#4D4F53; --fx-ph:#A65F00;
+  --fx-ver:#1F7A4D; --fx-jud:#4D4F53; --fx-ph:#A65F00;
   --fx-mono:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Consolas,'Liberation Mono',monospace;
   --fx-ease:cubic-bezier(.22,1,.36,1); --fx-ease-io:cubic-bezier(.65,0,.35,1);
   --fx-ring:color-mix(in srgb,var(--fg) 8%,transparent);
   --fx-band:color-mix(in srgb,var(--fg) 11%,transparent);
 }
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fx-ver:#E0605A;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}}
-:root[data-theme="dark"]{--fx-ver:#E0605A;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fx-ver:#4FAE80;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}}
+:root[data-theme="dark"]{--fx-ver:#4FAE80;--fx-jud:#A7A9AC;--fx-ph:#F2A93B}
 
 /* ---------- shared ---------- */
 figure.fx{margin:2.6rem 0;position:relative;font-family:var(--font-sans)}

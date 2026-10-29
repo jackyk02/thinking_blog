@@ -106,10 +106,9 @@ figcaption b{color:var(--fg2);font-weight:500}
 .eq-box{margin:1rem 0 1.2rem;overflow-x:auto;overflow-y:hidden;text-align:center}
 .content .katex{font-size:1.02em}
 
-/* Tie-rate chart (the held-out chart and step grid moved to css/figures.css) */
-#tie-chart{--verifier:#8C1515;--judge:#4D4F53}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}}
-:root[data-theme="dark"] #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}
+/* Tie-rate chart (the held-out chart and step grid moved to css/figures.css); verifier green and judge grey come from
+   the figures' tokens (--fx-ver, --fx-jud in css/figures.css), light and dark */
+#tie-chart{--verifier:var(--fx-ver);--judge:var(--fx-jud)}
 #tie-chart text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
 #tie-chart .cap{text-transform:uppercase;letter-spacing:.08em}
 #tie-chart .end-lbl{font-family:var(--font-sans);font-size:13px;letter-spacing:0;font-weight:500}
@@ -227,10 +226,10 @@ figure.right-wide{margin-left:0}
 
 @media (min-width:1180px){figure.right-wide{margin-right:-180px}}
 .chart .mean{fill:none;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
-.chart .s-ver{stroke:var(--verifier,var(--azure))}.chart .s-jud{stroke:var(--judge,var(--fg4))}
-.chart .end-lbl{font-size:12px;font-weight:500}.chart .end-ver{fill:var(--azure)}.chart .end-jud{fill:var(--fg3)}
+.chart .s-ver{stroke:var(--verifier,var(--fx-ver))}.chart .s-jud{stroke:var(--judge,var(--fx-jud))}
+.chart .end-lbl{font-size:12px;font-weight:500}.chart .end-ver{fill:var(--verifier,var(--fx-ver))}.chart .end-jud{fill:var(--judge,var(--fx-jud))}
 .chart .guide{stroke:var(--fg5);stroke-dasharray:3 3;opacity:0}
-.chart .dot{opacity:0}.chart .dot.ver{fill:var(--verifier,var(--azure))}.chart .dot.jud{fill:var(--judge,var(--fg4))}
+.chart .dot{opacity:0}.chart .dot.ver{fill:var(--verifier,var(--fx-ver))}.chart .dot.jud{fill:var(--judge,var(--fx-jud))}
 .chart .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len)}
 .chart.is-revealed .draw{transition:stroke-dashoffset 1.4s cubic-bezier(.65,0,.35,1);stroke-dashoffset:0}
 .chart .human-lbl{fill:var(--emerald)}
