@@ -309,25 +309,28 @@ footer{margin-top:9rem;padding-bottom:1.75rem;color:var(--fg4);font-family:var(-
 .tk-status{display:flex;margin-top:12px;font-family:var(--font-sans)}
 .tk-pills{display:flex;gap:6px}
 .tk-pill{font-size:12px;font-weight:500;color:var(--pill-fg);background:var(--pill);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums}
-.tk-pill-soft{color:var(--fg3);background:var(--bg-code)}
-#tk-canvas-host{width:100%;aspect-ratio:1;border-radius:.45rem;background:var(--bg-code);overflow:hidden}
+.tk-pill-soft{color:var(--fg3);background:var(--bg-code);text-align:center}
+#tk-canvas-host{position:relative;width:100%;aspect-ratio:1;border-radius:.45rem;background:var(--bg-code);overflow:hidden}
 #tk-canvas-host canvas{display:block;width:100%!important;height:100%!important}
+#tk-canvas-host .tk-view,#tk-canvas-host .tk-over{position:absolute;inset:0}
+#tk-canvas-host .tk-over{opacity:0;pointer-events:none}
 .tk-pre-box{flex:1 1 auto;height:0;min-height:0;display:flex;background:var(--bg-code);border-radius:.45rem}
 .tk-pre{position:relative;flex:1;min-height:0;scrollbar-width:none;margin:0;padding:1rem 1rem 1rem 0;font-family:'SF Mono',Monaco,Inconsolata,'Fira Code',ui-monospace,monospace;font-variant-ligatures:none;font-size:13px;line-height:1.75;color:var(--c-text);overflow:hidden;white-space:pre;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%)}
-.tk-line{display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:14px;white-space:pre-wrap;overflow-wrap:anywhere;transition:background .3s}
+.tk-code{position:relative;will-change:transform}
+.tk-hl{position:absolute;left:0;right:0;top:0;height:0;background:color-mix(in srgb,var(--c-accent) 6%,transparent);box-shadow:inset 3px 0 0 var(--c-accent);pointer-events:none;opacity:0;transition:opacity .4s ease}
+.tk-line{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:14px;white-space:pre-wrap;overflow-wrap:anywhere;opacity:.34;transition:opacity .5s ease}
+.tk-line.is-run{opacity:1}
 .tk-line::before{content:attr(data-n);text-align:right;color:var(--fg5);font-size:11px}
 .tk-c{padding-left:2ch;text-indent:-2ch}
-.tk-line.on{background:color-mix(in srgb,var(--c-accent) 6%,transparent);box-shadow:inset 3px 0 0 var(--c-accent)}
-.tk-line.on::before{color:var(--c-accent);font-weight:600}
+.tk-line.on::before{color:var(--c-accent);font-weight:600;transition:color .2s}
 .tk-kw{color:var(--c-blue);font-weight:600}.tk-fn{color:var(--c-blue)}.tk-str{color:var(--c-green)}.tk-num{color:var(--c-red)}.tk-com{color:var(--c-comment)}.tk-prop{color:var(--c-text)}
-.tk-caret{display:inline-block;width:2px;height:1.2em;vertical-align:-.25em;background:var(--c-accent);margin-left:1px;animation:tk-blink 1s steps(1) infinite}
-@keyframes tk-blink{50%{opacity:0}}
 .tk-controls{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-left:auto}
 .tk-progress{width:96px;height:24px;border-radius:999px;background:var(--bg-code,#f3f3f2);display:flex;align-items:center;padding:0 9px}
-.tk-progress span{display:block;height:4px;border-radius:999px;background:var(--fg3);width:0}
+.tk-progress span{display:block;flex:1;height:4px;border-radius:2px;background:var(--fg3);clip-path:inset(0 100% 0 0 round 2px)}
 .tk-btn{width:24px;height:24px;border-radius:50%;border:0;background:#f3f3f2;color:var(--fg3);display:grid;place-items:center;cursor:pointer;padding:0}
 .tk-btn svg{width:11px;height:11px}
 .tk-btn:hover{background:#e8e8e6}
+.tk-btn:disabled{opacity:.45;cursor:default}
 @media (max-width:760px){.tk-figure{grid-template-columns:1fr;gap:18px}.tk-pre{font-size:11.5px}.tk-pre-box{flex:none;height:300px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tk-figure{--bg-code:#1f1f1e;--c-blue:#ececea;--c-green:#a6a6a1;--c-red:#a6a6a1;--c-comment:#6f6f6b;--c-text:#ececea;--c-accent:#ececea}:root:not([data-theme="light"]) .tk-progress,:root:not([data-theme="light"]) .tk-btn{background:#1f1f1e}}
 :root[data-theme="dark"] .tk-figure{--bg-code:#1f1f1e;--c-blue:#ececea;--c-green:#a6a6a1;--c-red:#a6a6a1;--c-comment:#6f6f6b;--c-text:#ececea;--c-accent:#ececea}:root[data-theme="dark"] .tk-progress,:root[data-theme="dark"] .tk-btn{background:#1f1f1e}
@@ -393,7 +396,7 @@ figure.right-wide{margin-left:0}
       <button class="tk-btn" id="tk-pause" aria-label="Pause animation"><svg width="14" height="14" viewBox="0 0 14 14"><path id="tk-pause-icon" d="M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z" fill="currentColor"/></svg></button>
     </div>
     </div>
-    <div class="tk-figure" id="tk-paint" role="img" aria-label="Animation: the p5.brush sketch flower.js types out line by line on the right while the real sketch paints a teal watercolor flower with an amber center, green leaves and a thin stem on the left.">
+    <div class="tk-figure" id="tk-paint" role="img" aria-label="Animation: the p5.brush sketch flower.js runs line by line on the right while the real sketch paints a blue watercolor flower with an amber center, green leaves and a thin stem on the left, one brush call at a time.">
       <div class="tk-panel"><div id="tk-canvas-host"></div></div>
       <div class="tk-panel"><div class="tk-pre-box"><pre class="tk-pre" id="tk-pre" aria-hidden="true"></pre></div></div>
     </div>
@@ -596,97 +599,9 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 <script src="https://cdn.jsdelivr.net/npm/p5.brush@1.1.4/dist/p5.brush.js"></script>
 <script src="flower.js"></script>
 
+<script src="js/hero.js"></script>
+
 <script>
-/* ---------- Cover: run the sketch file for real, replaying its brush calls as the code types ---------- */
-(function(){
-  const host=document.getElementById('tk-canvas-host');if(!host)return;
-  const pre=document.getElementById('tk-pre'),bar=document.getElementById('tk-bar'),stepEl=document.getElementById('tk-step'),
-        callEl=document.getElementById('tk-layers'),btn=document.getElementById('tk-pause'),icon=document.getElementById('tk-pause-icon'),
-        root=document.getElementById('tk-paint');
-  if(typeof window.setup!=='function'||!window.brush||!window.p5){host.textContent='p5.brush failed to load';return}
-  const FILE='flower.js',PAPER='#f3f3f2';
-  const WRAP=['pick','stroke','strokeWeight','noStroke','fill','noFill','bleed','fillTexture','hatch','noHatch','set','scaleBrushes',
-              'field','noField','line','polygon','circle','rect','flowLine','spline','plot'];
-  const DRAWS=new Set(['background','line','polygon','circle','rect','flowLine','spline','plot']);
-  const Q=[],ORIG={};let realBg;
-  // Which line of the sketch made this call (works for Chrome, Safari and Firefox stack formats)
-  const SRC=new RegExp(FILE.replace(/\./g,'\\.')+':(\\d+):\\d+');
-  const lineOf=()=>{const m=(new Error().stack||'').match(SRC);return m?+m[1]:0};
-
-  // ---- capture: run the user's setup() for real, but queue every drawing-related call ----
-  const userSetup=window.setup;
-  window.setup=function(){
-    realBg=window.background;
-    window.background=(...a)=>Q.push({name:'background',args:a,line:lineOf()});
-    WRAP.forEach(k=>{if(typeof brush[k]==='function'){ORIG[k]=brush[k];brush[k]=(...a)=>Q.push({name:k,args:a,line:lineOf()})}});
-    userSetup();
-    window.background=realBg;WRAP.forEach(k=>{if(ORIG[k])brush[k]=ORIG[k]});
-    const cv=document.getElementById('defaultCanvas0');if(cv)host.appendChild(cv);
-    realBg(PAPER);
-    stepEl.textContent=`call 0 / ${Q.filter(c=>DRAWS.has(c.name)).length}`;
-    if(!started)noLoop();
-  };
-  function run(c){if(c.name==='background')realBg(...c.args);else ORIG[c.name](...c.args)}
-
-  // ---- code panel ----
-  const RX=/(\/\/.*$)|("[^"]*")|\b(function|let|for|const)\b|\b(\d+(?:\.\d+)?)\b|([A-Za-z_]\w*)(?=\()/g;
-  function tokens(src){const out=[];let i=0,m;RX.lastIndex=0;
-    while((m=RX.exec(src))){if(m.index>i)out.push(['',src.slice(i,m.index)]);
-      out.push([m[1]?'com':m[2]?'str':m[3]?'kw':m[4]?'num':'fn',m[0]]);i=m.index+m[0].length}
-    if(i<src.length)out.push(['',src.slice(i)]);return out}
-  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  function html(tok,n){let s='',left=n;for(const [c,t] of tok){if(left<=0)break;const part=t.slice(0,left);left-=part.length;
-    s+=c?`<span class="tk-${c}">${esc(part)}</span>`:esc(part)}return s}
-  const wrap=(s,caret)=>`<span class="tk-c">${s||'\u200b'}${caret?'<span class="tk-caret"></span>':''}</span>`;
-  let CODE=[],TOK=[],lineEls=[];
-  fetch(FILE,{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
-    CODE=t.replace(/\s+$/,'').split('\n');TOK=CODE.map(tokens);
-    pre.innerHTML=CODE.map((l,i)=>`<span class="tk-line" data-n="${i+1}"></span>`).join('');lineEls=[...pre.children];
-    reset();
-  }).catch(()=>{CODE=[];pre.textContent='// could not load '+FILE});
-
-  // ---- playback: type the file; when a line is done, the calls it made run on the real canvas ----
-  const CPS=20/4,DRAW_GAP=55,HOLD=5000;
-  let line=0,chars=0,typed=0,next=0,drawn=0,lastDraw=0,pauseUntil=0,holdUntil=0,paused=false,started=false,shown=-1;
-  const indent=i=>(CODE[i]?.match(/^\s*/)||[''])[0].length;
-  function reset(){line=0;chars=indent(0);typed=0;next=0;drawn=0;holdUntil=0;pauseUntil=0;shown=-1;
-    if(realBg)realBg(PAPER);lineEls.forEach(l=>{l.innerHTML='';l.classList.remove('on')});pre.scrollTop=0;scrollTarget=0}
-  // Ease the code panel toward the current line every frame (keeps up even when typing is fast)
-  let scrollTarget=0;
-  function follow(){
-    if(shown!==line&&line<CODE.length){shown=line;scrollTarget=Math.max(0,lineEls[line].offsetTop-pre.clientHeight*.45)}
-    const d=scrollTarget-pre.scrollTop;if(Math.abs(d)>.5)pre.scrollTop+=d*.22}
-  const totalDraws=()=>Q.filter(c=>DRAWS.has(c.name)).length;
-  function render(){lineEls.forEach((el,i)=>el.classList.toggle('on',i===line));
-    if(line<CODE.length)lineEls[line].innerHTML=wrap(html(TOK[line],Math.floor(chars)),true);
-    stepEl.textContent=`call ${drawn} / ${totalDraws()}`;
-    const total=CODE.reduce((s,l)=>s+l.length+1,0)||1,done=CODE.slice(0,line).reduce((s,l)=>s+l.length+1,0)+Math.min(chars,CODE[line]?.length||0);
-    bar.style.width=Math.min(100,done/total*100)+'%';follow()}
-  window.draw=function(){
-    if(paused||!CODE.length)return;const now=performance.now();
-    if(holdUntil){if(now>holdUntil)reset();return}
-    // run every queued call whose source line has been typed; brush strokes land one at a time
-    while(next<Q.length&&Q[next].line<=typed){const c=Q[next];
-      if(DRAWS.has(c.name)){if(now-lastDraw<DRAW_GAP)break;run(c);lastDraw=now;drawn++;next++;callEl.textContent=(c.name==='background'?'':'brush.')+c.name;break}
-      run(c);next++}
-    const waiting=next<Q.length&&Q[next].line<=typed; // keep typing in step with the painting
-    if(line>=CODE.length){if(!waiting&&next>=Q.length)holdUntil=now+HOLD}
-    else if(!waiting&&now>pauseUntil){
-      chars+=deltaTime*CPS;
-      if(chars>=CODE[line].length){lineEls[line].innerHTML=wrap(html(TOK[line],1e9));typed=line+1;line++;chars=indent(line);
-        pauseUntil=now+(CODE[line-1].trim()?1:.5)}
-    }
-    render();
-  };
-  btn.addEventListener('click',()=>{paused=!paused;btn.setAttribute('aria-label',paused?'Play animation':'Pause animation');
-    icon.setAttribute('d',paused?'M4 2l8 5-8 5z':'M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z')});
-  if(matchMedia('(prefers-reduced-motion:reduce)').matches){ // paint the finished sketch, show the full file
-    window.draw=function(){if(!CODE.length)return;while(next<Q.length){run(Q[next]);next++}drawn=totalDraws();
-      lineEls.forEach((el,i)=>el.innerHTML=wrap(html(TOK[i],1e9)));line=CODE.length;render();noLoop()};started=true;return}
-  new IntersectionObserver(es=>es.forEach(en=>{started=en.isIntersecting;
-    if(typeof loop==='function'&&typeof noLoop==='function'&&realBg){en.isIntersecting?loop():noLoop()}}),{threshold:.15}).observe(root);
-})();
-
 /* ---------- TOC ---------- */
 (function(){const ul=document.querySelector('#toc ul');let cur=null;
 const items=[{id:'introduction',text:'Introduction',tag:'H2'},...[...document.querySelectorAll('#article h2, #article h3')].filter(h=>!h.closest('[hidden]')).map(h=>({id:h.id,text:h.textContent,tag:h.tagName}))];
