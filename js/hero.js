@@ -17,8 +17,16 @@
   const FILE = 'flower.js';
   const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const label = c => c.name === 'background' ? 'background' : 'brush.' + c.name;
-  // pace: every duration of the original timeline × K (the loop was ~21.7 s, now ~15.5 s), then the finished painting holds
-  const K = .7, HOLD = 3.5;
+  // pace: every duration of the original timeline × K, then the timeline plays SPEED× faster in wall time on a cubic-bezier
+  // curve that accelerates out of the first marks and eases out into the finished painting, which then holds HOLD s
+  // (loop ~15.5 s → ~9.5 s, 29 Oct)
+  const K = .7, HOLD = 3, SPEED = 1.85;
+  function bezier(x1, y1, x2, y2) {   // CSS cubic-bezier timing function
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const X = t => ((ax * t + bx) * t + cx) * t, dX = t => (3 * ax * t + 2 * bx) * t + cx, Y = t => ((ay * t + by) * t + cy) * t;
+    return x => { if (x <= 0) return 0; if (x >= 1) return 1; let t = x; for (let i = 0; i < 8; i++) { const d = dX(t); if (Math.abs(d) < 1e-6) break; t -= (X(t) - x) / d } return Y(Math.max(0, Math.min(1, t))) };
+  }
+  const ease = bezier(.45, .05, .2, 1);
 
   const view = document.createElement('canvas'), over = document.createElement('canvas');
   view.className = 'tk-view'; over.className = 'tk-over'; view.setAttribute('aria-hidden', 'true'); over.setAttribute('aria-hidden', 'true');
@@ -41,13 +49,13 @@
   captured.then(c => { cap = c; if (c.static) showStatic(); else finishPrecompute() }, () => { host.textContent = 'p5.brush failed to load' });
 
   /* ---------------- timeline ---------------- */
-  let CODE = [], lineEls = [], segs = [], tPaint = 0, tLoop = 0;
+  let CODE = [], lineEls = [], segs = [], tPaint = 0, wPaint = 0, wLoop = 0;
   function passDur(ln) { const s = (CODE[ln - 1] || '').trim(); return !s ? .04 : s.startsWith('//') ? .12 : s === '}' ? .07 : .1 }
 
   /* ---------------- playback ---------------- */
   let hlH = '', barP = -1;
   const setBar = p => { p = Math.max(0, Math.min(1, p)); if (Math.abs(p - barP) < 1e-4) return; barP = p; bar.style.clipPath = `inset(0 ${((1 - p) * 100).toFixed(2)}% 0 0 round 2px)` };
-  let T = 0, si = -1, runUpTo = 0, onLine = -1, lastName = '';
+  let T = 0, W = 0, si = -1, runUpTo = 0, onLine = -1, lastName = '';   // T: timeline time, W: wall time
   // critically damped springs (time based, so motion is the same at any frame rate)
   const springs = { scroll: { x: 0, v: 0, w: 7 }, top: { x: 0, v: 0, w: 16 }, h: { x: 0, v: 0, w: 16 }, prog: { x: 0, v: 0, w: 9 } };
   function spring(s, target, dt) { const f = 1 + 2 * dt * s.w, oo = s.w * s.w, hoo = dt * oo, det = 1 / (f + dt * hoo); s.x = (f * s.x + dt * s.v + dt * hoo * target) * det; s.v = (s.v + hoo * (target - s.x)) * det; /* see Ryan Juckett, damped springs */ }
@@ -86,7 +94,7 @@
   function restart() {
     // hold is over: lines settle back, the scroll eases to the top and the background call washes paper over the
     // finished painting (a cross-fade), then everything plays again from the stored layers
-    T -= tLoop; si = -1; runUpTo = 0;
+    W -= wLoop; T = 0; si = -1; runUpTo = 0;
     lineEls.forEach(e => e.classList.remove('is-run'));
     R.reset(cap.C0, R.layers.length && R.layers[0].kind === 'fade');
   }
@@ -95,7 +103,8 @@
   function frame(ts) {
     raf = 0; if (!ready || paused || !inView) return;
     const dt = last ? Math.min(.05, (ts - last) / 1000) : 0; last = ts;
-    T += dt; if (T >= tLoop) restart();
+    W += dt; if (W >= wLoop) restart();
+    T = W < wPaint ? tPaint * ease(W / wPaint) : tPaint + (W - wPaint);
     tick(dt);
     raf = requestAnimationFrame(frame);
   }
@@ -131,7 +140,7 @@
     R = Painter.Renderer(view.getContext('2d'), cap.W, cap.H, cap.C0, over);
     Promise.all([codeReady, document.fonts ? document.fonts.ready : 0]).then(() => {
       const tl = Painter.timeline(cap, { k: K, pass: passDur, lines: CODE.length });
-      segs = tl.segs; R.layers = tl.layers; tPaint = tl.tPaint; tLoop = tPaint + HOLD;
+      segs = tl.segs; R.layers = tl.layers; tPaint = tl.tPaint; wPaint = tPaint / SPEED; wLoop = wPaint + HOLD;
       sizePills(); measure();
       new ResizeObserver(measure).observe(pre);
       hl.style.opacity = 1; ready = true; kick();
