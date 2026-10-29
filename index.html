@@ -103,6 +103,8 @@ figcaption b{color:var(--fg2);font-weight:500}
 /* LLM-as-a-Verifier prompt + equation */
 .prompt-box{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;background:var(--code-bg);border-radius:.45rem;padding:1rem 1.1rem;white-space:pre-wrap;color:var(--fg1);margin:1rem 0 1.4rem}
 .prompt-box .ph{color:var(--fg4);font-style:italic}
+/* the score tags the verifier reads its logprobs from: verifier green (--fx-ver, css/figures.css), in the text and in the prompt */
+.content code.score-tag,.prompt-box .score-tag{color:var(--fx-ver)}
 .eq-box{margin:1rem 0 1.2rem;overflow-x:auto;overflow-y:hidden;text-align:center}
 .content .katex{font-size:1.02em}
 
@@ -312,7 +314,7 @@ figure.right-wide{margin-left:0}
       </figure>
 
       <h2 id="how-does-llm-as-a-verifier-work">How does LLM-as-a-Verifier work?</h2>
-      <p>Given a painting prompt \(x\), a model \(p_\theta\), a criterion \(c\), and two candidate paintings \(\tau_i\) and \(\tau_j\) rendered from the policy's sketches, we construct scoring prompts and obtain their conditional distributions \(p_{\theta}(v \mid x,c,\tau_i)\) and \(p_{\theta}(v \mid x, c, \tau_j)\) by extracting the logprobs from <code>&lt;score_A&gt;</code> and <code>&lt;score_B&gt;</code> tags using the following prompt:</p>
+      <p>Given a painting prompt \(x\), a model \(p_\theta\), a criterion \(c\), and two candidate paintings \(\tau_i\) and \(\tau_j\) rendered from the policy's sketches, we construct scoring prompts and obtain their conditional distributions \(p_{\theta}(v \mid x,c,\tau_i)\) and \(p_{\theta}(v \mid x, c, \tau_j)\) by extracting the logprobs from <code class="score-tag">&lt;score_A&gt;</code> and <code class="score-tag">&lt;score_B&gt;</code> tags using the following prompt:</p>
       <pre class="prompt-box">You are an expert watercolor reviewer. You will see a painting prompt and two paintings.
 
 Evaluation Criterion: <span class="ph">{criterion}</span>
@@ -322,8 +324,8 @@ Painting A: <span class="ph">{rendered image A}</span>   Painting B: <span class
 
 Carefully analyze each painting, then provide your final scores:
 
-&lt;score_A&gt; <span class="ph">SCORE_1_TO_20</span> &lt;/score_A&gt;
-&lt;score_B&gt; <span class="ph">SCORE_1_TO_20</span> &lt;/score_B&gt;
+<span class="score-tag">&lt;score_A&gt;</span> <span class="ph">SCORE_1_TO_20</span> <span class="score-tag">&lt;/score_A&gt;</span>
+<span class="score-tag">&lt;score_B&gt;</span> <span class="ph">SCORE_1_TO_20</span> <span class="score-tag">&lt;/score_B&gt;</span>
 
 Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = poor, 10 = acceptable, 20 = excellent)</pre>
       <p>Rather than collapsing each distribution to a single discrete score, we approximate the reward of a painting as:</p>
