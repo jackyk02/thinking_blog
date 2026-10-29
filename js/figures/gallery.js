@@ -1,13 +1,13 @@
 /* More paintings over RL training: one painting, its training steps on a quiet scrubber, the prompts as thumbnails.
    On first view (and when a prompt is picked) the painting paints itself at step 100, then repaints itself at 200,
-   300 and 400 with the watercolour reveal (js/figures/painter.js), a short pause between steps.
+   300 and 400 with the watercolour reveal (js/painter.js), a short pause between steps.
    Drag the scrubber to cross-fade between steps; tap a step or use the arrow keys to repaint it. Any input stops
    the playback. Reduced motion: step 400, and steps change without animation. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-gallery'); if (!root || !window.FX || !window.FIG) return;
   const { h, reduced, paint, clamp, tween, ease } = FX;
-  const RM = reduced() || !FX.painter;
+  const RM = reduced() || !window.Painter;
   const P = FIG.demos.more, STEPS = [100, 200, 300, 400], LAST = STEPS.length - 1;
   const src = (pi, k) => `demos/${P[pi][1]}-iter${k + 1}.jpg`;
   let p = 0, pos = RM ? LAST : 0, cur = null, seq = 0, gen = 0, glide = null;
@@ -61,7 +61,7 @@
     const was = finishPaint(), target = src(p, k); gen++;
     view.classList.remove('blank'); scrub.classList.add('glide'); pos = k; ui();
     if (RM) { show(k); return Promise.resolve(true) }
-    const job = cur = FX.painter.paint(cv, target, { from: fromPaper ? 'paper' : was ? cv : imA, max: 420, speed: fromPaper ? 1 : 1.3 });
+    const job = cur = Painter.paint(cv, target, { from: fromPaper ? 'paper' : was ? cv : imA, max: 420, speed: fromPaper ? 1 : 1.3 });
     view.classList.add('painting');
     return job.done.then(ok => {
       if (cur !== job) return false;
@@ -77,7 +77,7 @@
       if (!(await paintTo(k)) || seq !== my) return;
     }
   }
-  const warm = pi => { if (!RM) STEPS.forEach((_, k) => FX.painter.prefetch(src(pi, k), cv, 420)) };
+  const warm = pi => { if (!RM) STEPS.forEach((_, k) => Painter.prefetch(src(pi, k), cv, 420)) };
   function pick(i) {
     seq++; finishPaint(); p = i; warm(i);
     if (RM) { show(LAST); return }

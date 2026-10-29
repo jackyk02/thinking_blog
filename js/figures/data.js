@@ -17,6 +17,10 @@ window.FIG = {
     top: [["pear on table","ochre-pear"],["mountain at dawn","mountain-dawn"],["violet daisy","violet-daisy"]],
     more: [["teal forest path","teal-forest-path"],["rose pink cactus","rose-pink-cactus"],["crimson daisy","crimson-daisy"],["rose pink lighthouse on a rocky coast","rose-pink-lighthouse-on-a-rocky-coast"],["rose pink koi fish","rose-pink-koi-fish"],["indigo cherry blossom branch","indigo-cherry-blossom-branch"]]
   },
+  /* p5.brush sketches for the paintings above, by image path, e.g. "demos/ochre-pear-iter1.jpg": "sketches/ochre-pear-iter1.js".
+     A painting listed here is replayed from its sketch, call by call, like the cover (js/painter.js); the others are
+     rebuilt as brush strokes from the image. Sketches are global-mode p5 + p5.brush with setup(), like flower.js. */
+  sketches: {},
   /* Real groups of five (Phase 1 pairwise-verifier run, step 250). kimi = real held-out score per painting. */
   groups: {
     pear: { prompt: "Paint a coral pear in layered watercolor glazes.", short: "a coral pear in layered watercolor glazes",

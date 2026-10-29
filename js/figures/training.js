@@ -1,14 +1,14 @@
 /* Painting quality over RL training.
    Each column of paintings sits directly above its training step on the chart's x-axis.
    First view: both curves draw left to right, and as they reach a step its three paintings paint themselves,
-   one after another, with the cover's watercolour reveal (js/figures/painter.js). Paintings off screen wait.
+   a beat apart, brush mark by brush mark like the cover (js/painter.js). Paintings off screen wait.
    Hover, drag or use the arrow keys to light one step and read both curves there.
    Reduced motion: the finished paintings and curves, no movement. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-training'); if (!root || !window.FX || !window.FIG) return;
   const { h, s, clamp, reduced, responsive, onVisible, tween, paint } = FX;
-  const RM = reduced() || !FX.painter;
+  const RM = reduced() || !window.Painter;
   const D = FIG, ROWS = D.demos.top, ST = [100, 200, 300, 400], X1 = 500, Y0 = .5, Y1 = .78;
   const meanOf = arm => {
     const sd = D.heldout.seeds[arm], maps = sd.map(x => new Map(x));
@@ -101,8 +101,8 @@
   // the frame shows blank paper at once; the three rows of a step start painting about half a second apart
   function paintOne(im, delay) {
     if (im._job) return;
-    im._job = FX.painter.paint(im._cv, im._src, { speed: 1.15, delay });
-    im._job.done.then(() => FX.painter.load(im._src)).catch(() => {}).then(() => im.classList.add('done'));
+    im._job = Painter.paint(im._cv, im._src, { speed: 1.15, delay });
+    im._job.done.then(() => Painter.load(im._src)).catch(() => {}).then(() => im.classList.add('done'));
   }
 
   function focusStep(step) {
@@ -139,7 +139,7 @@
   responsive(root, layout);
   // decode and analyse the paintings while the figure approaches, so each one is ready when the curves reach it
   if (!RM) {
-    const pre = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pre.disconnect(); imgs.slice().sort((a, b) => a._k - b._k || a._r - b._r).forEach(im => FX.painter.prefetch(im._src, im._cv)) } }, { rootMargin: '700px 0px' });
+    const pre = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { pre.disconnect(); imgs.slice().sort((a, b) => a._k - b._k || a._r - b._r).forEach(im => Painter.prefetch(im._src, im._cv)) } }, { rootMargin: '700px 0px' });
     pre.observe(root);
   }
   // the curves take ~8 s, so each step's paintings are mostly done before the next step starts

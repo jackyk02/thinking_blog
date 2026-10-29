@@ -3,14 +3,14 @@
    compares every pair, reads a score distribution, takes its expected value) → Normalise (reward minus the group
    mean) → Update (GRPO), then the updated policy writes the next group.
    Render: each sketch's lines light up in turn and dissolve as the washes they stand for bloom on the paper
-   (js/figures/painter.js), the five paintings a beat apart. The lines are schematic and the reveal is rebuilt from the
+   (js/painter.js), the five paintings a beat apart. The lines are schematic and the reveal is rebuilt from the
    finished image, not replayed from the sketch (we don't have these sketches). Paintings are real (step 250); the
    scores are PLACEHOLDER. Loops while visible; pause button; click a stage to hold it. Reduced motion: holds on Normalise. */
 (function () {
   'use strict';
   const root = document.getElementById('fx-pipeline'); if (!root || !window.FX || !window.FIG) return;
   const { h, s, reduced, responsive, watch, paint, playButton, tag } = FX;
-  const RM = reduced() || !FX.painter;
+  const RM = reduced() || !window.Painter;
   const G = FIG.groups, PH = FIG.placeholder.pipeline;
   const GROUPS = ['pear', 'hydrangea'].map(k => ({ prompt: G[k].short, imgs: G[k].imgs, r: PH[k], name: k }));
   const STAGES = [['Prompt', ''], ['Code', 'Inkling-Small'], ['Render', ''], ['Verify', 'Inkling-Small'], ['Normalise', ''], ['Update', 'GRPO']];
@@ -52,7 +52,7 @@
   root.setAttribute('role', 'group');
   root.setAttribute('aria-label', 'RL training loop: a text prompt; Inkling-Small writes five p5.brush sketches; each sketch renders into a painting; Inkling-Small, as the verifier, compares every pair and scores each painting; scores are centered within the group; GRPO updates the model, which writes the next group.');
 
-  const prefetch = g => { if (!RM) GROUPS[g].imgs.forEach((src, i) => FX.painter.prefetch(src, slots[i].cv, 320)) };
+  const prefetch = g => { if (!RM) GROUPS[g].imgs.forEach((src, i) => Painter.prefetch(src, slots[i].cv, 320)) };
   function fill(g) {
     const grp = GROUPS[g], m = grp.r.reduce((a, b) => a + b) / 5, adv = grp.r.map(v => v - m), mx = Math.max(...adv.map(Math.abs));
     prompt.textContent = `“${grp.prompt}”`;
@@ -79,7 +79,7 @@
     const id = ++run, grp = GROUPS[gi];
     const jobs = slots.map(x => {
       x.sq.classList.add('paper');
-      const job = x.job = FX.painter.paint(x.cv, grp.imgs[x.i], { max: 320, speed: SPEED, delay: .35 + x.i * STAGGER, onFrame: t => lines(x, job, t) });
+      const job = x.job = Painter.paint(x.cv, grp.imgs[x.i], { max: 320, speed: SPEED, delay: .35 + x.i * STAGGER, onFrame: t => lines(x, job, t) });
       return job.done.then(() => { if (x.job === job) { x.job = null; x.sq.classList.add('done'); x.sq.classList.remove('paper') } });
     });
     // when all five are painted, the loop moves on (if it is playing)
