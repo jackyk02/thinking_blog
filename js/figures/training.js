@@ -144,5 +144,9 @@
   }
   // the curves take ~8 s, so each step's paintings are mostly done before the next step starts
   if (RM) setProgress(1);
-  else onVisible(root, () => tween(8200, t => setProgress(.72 * t + .28 * t * t * (3 - 2 * t))), .3);
+  // the first column turns to blank paper and starts painting the moment the curves start, not when they reach step 100
+  else onVisible(root, () => {
+    imgs.forEach(im => { if (im._k === 0 && !im.classList.contains('in')) { im.classList.add('in'); paintOne(im, im._r * .45) } });
+    tween(8200, t => setProgress(.72 * t + .28 * t * t * (3 - 2 * t)));
+  }, .3);
 })();
