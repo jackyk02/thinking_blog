@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scaling RL for Creative Tasks</title>
+<title>Training LLMs to Paint with RL and Self-Verification</title>
 <meta name="description" content="Scaling verification with LLM-as-a-Verifier makes RL more effective for creative, non-verifiable tasks, using watercolor painting with Inkling-Small as a case study.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,8 @@
 @font-face{font-family:'GT America';font-weight:500;font-display:swap;src:url('fonts/gt-america/GT-America-Standard-Medium.woff2') format('woff2')}
 @font-face{font-family:'GT America';font-weight:700;font-display:swap;src:url('fonts/gt-america/GT-America-Standard-Bold.woff2') format('woff2')}
 :root{
-  --bg:#fff; --fg:#282828; --fg1:#3c3836; --fg2:#504945; --fg3:#6b6866; --fg4:#676767; --fg5:#969696;
+  --bg:#fff; --fg:#282828; --fg1:#3a3a3a; --fg2:#4d4d4d; --fg3:#666; --fg4:#676767; --fg5:#969696;
+  --grape:#54478C; --grape-deep:#362D63; --grape-soft:#ECEAF4; --gray:#5f5f5f; /* the page's two colours: muted indigo-violet = verifier / accent, gray = judge */
   --rule:#e6e6e4; --panel:#F3F3F2; --code-bg:#f6f6f5;
   --amber:#F7A224; --azure:#0387E7; --cobalt:#0155BF; --emerald:#0E9972; --red:#EF402C; --lime:#9CC355;
   --font-serif:'Iowan Old Style BT','Iowan Old Style',Charter,'Bitstream Charter','Source Serif 4',Georgia,serif;
@@ -26,9 +27,9 @@
   --content-pad:1.3rem; --header-h:54px; --caption:13px;
 }
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){--bg:#161616;--fg:#ececea;--fg1:#dcdcd8;--fg2:#c8c8c3;--fg3:#a6a6a1;--fg4:#9a9a96;--fg5:#6f6f6b;--rule:#2e2e2c;--panel:#212120;--code-bg:#1f1f1e}
+  :root:not([data-theme="light"]){--bg:#161616;--fg:#ececea;--fg1:#dcdcd8;--fg2:#c8c8c3;--fg3:#a6a6a1;--fg4:#9a9a96;--fg5:#6f6f6b;--rule:#2e2e2c;--panel:#212120;--code-bg:#1f1f1e;--grape:#A79FD4;--grape-deep:#A79FD4;--grape-soft:#25233a;--gray:#a6a6a1}
 }
-:root[data-theme="dark"]{--bg:#161616;--fg:#ececea;--fg1:#dcdcd8;--fg2:#c8c8c3;--fg3:#a6a6a1;--fg4:#9a9a96;--fg5:#6f6f6b;--rule:#2e2e2c;--panel:#212120;--code-bg:#1f1f1e}
+:root[data-theme="dark"]{--bg:#161616;--fg:#ececea;--fg1:#dcdcd8;--fg2:#c8c8c3;--fg3:#a6a6a1;--fg4:#9a9a96;--fg5:#6f6f6b;--rule:#2e2e2c;--panel:#212120;--code-bg:#1f1f1e;--grape:#A79FD4;--grape-deep:#A79FD4;--grape-soft:#25233a;--gray:#a6a6a1}
 
 *{box-sizing:border-box}
 html{overflow-y:scroll;overflow-x:hidden;scroll-padding-top:calc(var(--header-h) + 1rem);scroll-behavior:smooth}
@@ -69,6 +70,9 @@ main{padding-top:calc(var(--header-h) + 3rem)}
 .left-toc a.active{color:var(--fg)}
 .left-toc a.active::before{content:"";position:absolute;left:0;top:.5em;width:4px;height:4px;border-radius:50%;background:var(--fg)}
 @media (max-width:1100px){.left-toc{display:none}}
+/* wide figures widen on both sides; the TOC fades out while one is on screen */
+.left-toc{transition:opacity .3s ease}
+body.toc-hide .left-toc{opacity:0;pointer-events:none}
 
 article.content{grid-column:2;padding:0 var(--content-pad)}
 .content p{margin:0 0 1.15em}
@@ -80,7 +84,8 @@ article.content{grid-column:2;padding:0 var(--content-pad)}
 .content li{margin-bottom:.4em}
 .content ul.claims{margin:0 0 1.3em}
 .content ul.claims li{margin-bottom:.7em}
-code{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Monaco,Consolas,monospace;font-size:.9em;color:#AD2111;padding:0 .2rem}
+code{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,Monaco,Consolas,monospace;font-size:.9em;color:var(--grape);padding:0 .2rem}
+code.score-tag{color:var(--fg);font-weight:700}
 .fn{font-family:var(--font-sans);font-size:.7em;vertical-align:super;text-decoration:none!important;color:var(--fg4)}
 .fn::before{content:"["}.fn::after{content:"]"}
 
@@ -100,10 +105,8 @@ figcaption b{color:var(--fg2);font-weight:500}
 .tip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);font-family:var(--font-sans);font-size:12px;padding:.35rem .55rem;border-radius:4px;opacity:0;transition:opacity .12s;z-index:200;white-space:nowrap}
 
 /* RL pipeline diagram */
-.pipe-fig{--accent:#8C1515;margin-top:1.4rem;margin-bottom:1.4rem}
+.pipe-fig{--accent:var(--grape);margin-top:1.4rem;margin-bottom:1.4rem}
 .pipe-fig figcaption{margin-top:.5rem}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .pipe-fig{--accent:#E0605A}}
-:root[data-theme="dark"] .pipe-fig{--accent:#E0605A}
 .pipe-toggle{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--font-sans);font-size:12.5px}
 .pipe-toggle-label{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4);margin-right:4px}
 .pipe-toggle button{font:inherit;border:1px solid var(--rule);background:var(--bg);color:var(--fg3);border-radius:999px;padding:3px 11px;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
@@ -127,9 +130,7 @@ figcaption b{color:var(--fg2);font-weight:500}
 @media (prefers-reduced-motion:reduce){.pipe .packet{display:none}}
 
 /* RL pipeline v2: what each stage produces */
-.p2{position:relative;padding-bottom:40px;--accent:#8C1515;font-family:var(--font-sans)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .p2{--accent:#E0605A}}
-:root[data-theme="dark"] .p2{--accent:#E0605A}
+.p2{position:relative;padding-bottom:40px;--accent:var(--grape);font-family:var(--font-sans)}
 .p2-stages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
 .p2-stage{position:relative;margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
 .p2-stage:not(:last-child)::after{content:"";position:absolute;right:-12px;top:calc(20px + 46px);width:10px;height:10px;border-top:1.5px solid var(--fg5);border-right:1.5px solid var(--fg5);transform:translateY(-50%) rotate(45deg) scale(.7)}
@@ -138,7 +139,7 @@ figcaption b{color:var(--fg2);font-weight:500}
 .p2-cap{font-family:var(--font-serif);font-style:italic;font-size:12px;color:var(--fg3);line-height:1.25}
 .p2-stage.on .p2-body{box-shadow:inset 0 0 0 1.5px var(--fg);background:var(--bg)}
 .p2-stage.on .p2-num{color:var(--fg)}
-.p2-accent .p2-num{color:var(--accent)}
+.p2-accent .p2-num{color:var(--grape-deep)}
 .p2-accent.on .p2-body{box-shadow:inset 0 0 0 1.5px var(--accent)}
 /* stage contents animate in when reached (class .seen persists for the rest of the cycle) */
 .p2-prompt span{font-family:var(--font-serif);font-style:italic;font-size:13px;line-height:1.3;color:var(--fg1);text-align:center;padding:0 8px;opacity:.25;transition:opacity .4s}
@@ -192,18 +193,18 @@ figcaption b{color:var(--fg2);font-weight:500}
 .content .katex{font-size:1.02em}
 
 /* Judge tie example */
-.tie-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:14px;max-width:520px;margin:0 auto}
+.tie-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;max-width:680px;margin:0 auto}
 .tie-item img{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 7%,transparent)}
 .tie-score{display:block;margin-top:8px;text-align:center;font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4)}
 .tie-score b{font-size:13px;color:var(--fg);letter-spacing:0;margin-left:4px}
 .tie-eq{font-family:var(--font-sans);font-size:26px;font-weight:300;color:var(--fg4);padding-bottom:24px}
-.tie-fig figcaption{text-align:center;max-width:520px;margin-left:auto;margin-right:auto}
+.tie-fig figcaption{text-align:center;max-width:680px;margin-left:auto;margin-right:auto}
 
 /* Painting RL demo grid */
 .demo-grid{--demo-label:138px;--demo-gap:12px}
-#fig-more-paintings{margin-top:2.6rem}
+#fig-more-paintings{margin-top:1.2rem}
 #fig-more-paintings .table-sub{margin-bottom:18px}
-@media (min-width:1180px){.demo-grid{margin-right:-180px}}
+@media (min-width:1180px){.demo-grid{margin-left:-120px;margin-right:-120px}}
 .demo-axis,.demo-row{display:grid;grid-template-columns:var(--demo-label) minmax(0,1fr);column-gap:var(--demo-gap);align-items:center}
 .demo-axis{margin-bottom:10px;font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4)}
 .demo-axis-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--demo-gap);position:relative;padding-bottom:9px}
@@ -217,10 +218,9 @@ figcaption b{color:var(--fg2);font-weight:500}
 .demo-chart-row .demo-head{padding-top:6px;align-self:start}
 #v3-chart text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
 #v3-chart .cap{text-transform:uppercase;letter-spacing:.08em}
+#v3-chart svg{width:95%}/* viewBox 684 wide (was 720): a slightly shorter x-axis at the same height */
 #v3-chart .end-lbl{font-family:var(--font-sans);font-size:13px;letter-spacing:0;font-weight:500}
-#v3-chart,#tie-chart{--verifier:#8C1515;--judge:#4D4F53}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #v3-chart,:root:not([data-theme="light"]) #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}}
-:root[data-theme="dark"] #v3-chart,:root[data-theme="dark"] #tie-chart{--verifier:#E0605A;--judge:#A7A9AC}
+#v3-chart,#tie-chart{--verifier:var(--grape);--judge:var(--gray)}
 #v3-chart .end-ver{fill:var(--verifier)}
 #tie-chart text{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.04em;fill:var(--fg4)}
 #tie-chart .cap{text-transform:uppercase;letter-spacing:.08em}
@@ -237,6 +237,8 @@ figcaption b{color:var(--fg2);font-weight:500}
 .demo-frames img{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 7%,transparent);transition:transform .25s ease}
 .demo-frames img:hover{transform:scale(1.03)}
 .demo-grid figcaption{margin-top:14px}
+/* top figure: slightly smaller paintings; the step axis shrinks with them so the labels stay over the columns */
+#fig-painting-rl-demos .demo-frames,#fig-painting-rl-demos .demo-axis-steps{width:88%}
 @media (max-width:620px){
   .demo-axis,.demo-row{grid-template-columns:1fr}
   .demo-axis-label{display:none}
@@ -276,6 +278,9 @@ tr.hi td{font-weight:600}
 .table-sub{font-family:var(--font-sans);font-size:13px;color:var(--fg4);margin-bottom:10px}
 .table-caption{font-family:var(--font-sans);font-size:var(--caption);color:var(--fg4);margin-top:.7rem}
 
+.ver-col{color:var(--grape-deep)}
+#tbl-sample-efficiency td:nth-child(3),#tbl-sample-efficiency td:last-child b{color:var(--grape)}
+
 /* Citation */
 .cite{position:relative;background:var(--code-bg);border-radius:6px;padding:1rem 1.1rem;font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre;overflow-x:auto}
 .copy{position:absolute;top:.5rem;right:.5rem;font-family:var(--font-sans);font-size:12px;background:var(--bg);border:1px solid var(--rule);color:var(--fg2);border-radius:4px;padding:.2rem .55rem;cursor:pointer}
@@ -302,32 +307,35 @@ footer{margin-top:9rem;padding-bottom:1.75rem;color:var(--fg4);font-family:var(-
 /* ---- Painting cover (Thinking Machines figure style) ---- */
 .post-cover.tk-cover{max-width:min(100%,940px);--pill:#e8e8e6;--pill-fg:#282828;--bg-code:#f3f3f2}
 .post-cover-caption{font-family:var(--font-serif);font-size:15px;line-height:1.4;color:var(--fg4);text-align:center;margin:1.1rem auto 0;max-width:620px}
-.tk-figure{--bg-code:#f3f3f2;--c-blue:#282828;--c-green:#5f5f5f;--c-red:#5f5f5f;--c-comment:#9a9a9a;--c-text:#282828;--c-accent:#282828;--pill:#E3F1FC;--pill-fg:#0387E7;
+.tk-figure{--bg-code:#f3f3f2;--c-blue:#282828;--c-green:#5f5f5f;--c-red:#5f5f5f;--c-comment:#9a9a9a;--c-text:#282828;--c-accent:#282828;--pill:var(--grape-soft);--pill-fg:var(--grape);
   display:grid;grid-template-columns:1fr 1fr;gap:24px;text-align:left;align-items:stretch}
 .tk-panel{display:flex;flex-direction:column;min-width:0}
 .tk-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;font-family:var(--font-sans)}
 .tk-status{display:flex;margin-top:12px;font-family:var(--font-sans)}
 .tk-pills{display:flex;gap:6px}
 .tk-pill{font-size:12px;font-weight:500;color:var(--pill-fg);background:var(--pill);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums}
-.tk-pill-soft{color:var(--fg3);background:var(--bg-code)}
-#tk-canvas-host{width:100%;aspect-ratio:1;border-radius:.45rem;background:var(--bg-code);overflow:hidden}
+.tk-pill-soft{color:var(--fg3);background:var(--bg-code);text-align:center}
+#tk-canvas-host{position:relative;width:100%;aspect-ratio:1;border-radius:.45rem;background:var(--bg-code);overflow:hidden}
 #tk-canvas-host canvas{display:block;width:100%!important;height:100%!important}
+#tk-canvas-host .tk-view,#tk-canvas-host .tk-over{position:absolute;inset:0}
+#tk-canvas-host .tk-over{opacity:0;pointer-events:none}
 .tk-pre-box{flex:1 1 auto;height:0;min-height:0;display:flex;background:var(--bg-code);border-radius:.45rem}
 .tk-pre{position:relative;flex:1;min-height:0;scrollbar-width:none;margin:0;padding:1rem 1rem 1rem 0;font-family:'SF Mono',Monaco,Inconsolata,'Fira Code',ui-monospace,monospace;font-variant-ligatures:none;font-size:13px;line-height:1.75;color:var(--c-text);overflow:hidden;white-space:pre;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%)}
-.tk-line{display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:14px;white-space:pre-wrap;overflow-wrap:anywhere;transition:background .3s}
+.tk-code{position:relative;will-change:transform}
+.tk-hl{position:absolute;left:0;right:0;top:0;height:0;background:color-mix(in srgb,var(--c-accent) 6%,transparent);box-shadow:inset 3px 0 0 var(--c-accent);pointer-events:none;opacity:0;transition:opacity .4s ease}
+.tk-line{position:relative;display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:14px;white-space:pre-wrap;overflow-wrap:anywhere;opacity:.34;transition:opacity .5s ease}
+.tk-line.is-run{opacity:1}
 .tk-line::before{content:attr(data-n);text-align:right;color:var(--fg5);font-size:11px}
 .tk-c{padding-left:2ch;text-indent:-2ch}
-.tk-line.on{background:color-mix(in srgb,var(--c-accent) 6%,transparent);box-shadow:inset 3px 0 0 var(--c-accent)}
-.tk-line.on::before{color:var(--c-accent);font-weight:600}
+.tk-line.on::before{color:var(--c-accent);font-weight:600;transition:color .2s}
 .tk-kw{color:var(--c-blue);font-weight:600}.tk-fn{color:var(--c-blue)}.tk-str{color:var(--c-green)}.tk-num{color:var(--c-red)}.tk-com{color:var(--c-comment)}.tk-prop{color:var(--c-text)}
-.tk-caret{display:inline-block;width:2px;height:1.2em;vertical-align:-.25em;background:var(--c-accent);margin-left:1px;animation:tk-blink 1s steps(1) infinite}
-@keyframes tk-blink{50%{opacity:0}}
 .tk-controls{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-left:auto}
 .tk-progress{width:96px;height:24px;border-radius:999px;background:var(--bg-code,#f3f3f2);display:flex;align-items:center;padding:0 9px}
-.tk-progress span{display:block;height:4px;border-radius:999px;background:var(--fg3);width:0}
+.tk-progress span{display:block;flex:1;height:4px;border-radius:2px;background:var(--fg3);clip-path:inset(0 100% 0 0 round 2px)}
 .tk-btn{width:24px;height:24px;border-radius:50%;border:0;background:#f3f3f2;color:var(--fg3);display:grid;place-items:center;cursor:pointer;padding:0}
 .tk-btn svg{width:11px;height:11px}
 .tk-btn:hover{background:#e8e8e6}
+.tk-btn:disabled{opacity:.45;cursor:default}
 @media (max-width:760px){.tk-figure{grid-template-columns:1fr;gap:18px}.tk-pre{font-size:11.5px}.tk-pre-box{flex:none;height:300px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tk-figure{--bg-code:#1f1f1e;--c-blue:#ececea;--c-green:#a6a6a1;--c-red:#a6a6a1;--c-comment:#6f6f6b;--c-text:#ececea;--c-accent:#ececea}:root:not([data-theme="light"]) .tk-progress,:root:not([data-theme="light"]) .tk-btn{background:#1f1f1e}}
 :root[data-theme="dark"] .tk-figure{--bg-code:#1f1f1e;--c-blue:#ececea;--c-green:#a6a6a1;--c-red:#a6a6a1;--c-comment:#6f6f6b;--c-text:#ececea;--c-accent:#ececea}:root[data-theme="dark"] .tk-progress,:root[data-theme="dark"] .tk-btn{background:#1f1f1e}
@@ -349,7 +357,7 @@ footer{margin-top:9rem;padding-bottom:1.75rem;color:var(--fg4);font-family:var(-
 .chart .seed{fill:none;stroke-width:1.1;opacity:.28}
 figure.right-wide{margin-left:0}
 
-@media (min-width:1180px){figure.right-wide{margin-right:-180px}}
+@media (min-width:1180px){figure.right-wide{margin-left:-120px;margin-right:-120px}}
 .chart .mean{fill:none;stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
 .chart .s-ver{stroke:var(--verifier,var(--azure))}.chart .s-jud{stroke:var(--judge,var(--fg4))}
 .chart .end-lbl{font-size:12px;font-weight:500}.chart .end-ver{fill:var(--azure)}.chart .end-jud{fill:var(--fg3)}
@@ -364,6 +372,7 @@ figure.right-wide{margin-left:0}
 .flow .stage{flex:1 1 100px}
 .flow-label{font-family:var(--font-sans);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--fg4);text-align:center;margin:.3rem 0}
 </style>
+<link rel="stylesheet" href="css/figures.css">
 </head>
 <body>
 
@@ -379,9 +388,9 @@ figure.right-wide{margin-left:0}
 
 <main>
   <div class="post-heading">
-    <h1 class="post-title">Scaling RL for Creative Tasks with Self-Verification</h1>
+    <h1 class="post-title">Training LLMs to Paint with RL and Self-Verification</h1>
     <div class="publish-metadata">
-      <span class="author">Jacky Kwok, Surya Narreddi, Neal Wu, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
+      <span class="author">Jacky Kwok, Surya Narreddi, Neal Wu, Cameron Franz, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
     </div>
   </div>
 
@@ -393,7 +402,7 @@ figure.right-wide{margin-left:0}
       <button class="tk-btn" id="tk-pause" aria-label="Pause animation"><svg width="14" height="14" viewBox="0 0 14 14"><path id="tk-pause-icon" d="M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z" fill="currentColor"/></svg></button>
     </div>
     </div>
-    <div class="tk-figure" id="tk-paint" role="img" aria-label="Animation: the p5.brush sketch flower.js types out line by line on the right while the real sketch paints a teal watercolor flower with an amber center, green leaves and a thin stem on the left.">
+    <div class="tk-figure" id="tk-paint" role="img" aria-label="Animation: the p5.brush sketch flower.js runs line by line on the right while the real sketch paints a blue watercolor flower with an amber center, green leaves and a thin stem on the left, one brush call at a time.">
       <div class="tk-panel"><div id="tk-canvas-host"></div></div>
       <div class="tk-panel"><div class="tk-pre-box"><pre class="tk-pre" id="tk-pre" aria-hidden="true"></pre></div></div>
     </div>
@@ -409,54 +418,56 @@ figure.right-wide{margin-left:0}
       <p>A key reason for this disparity lies in the reward signals. In verifiable domains, mathematical solutions can be checked using theorem provers, and code can be evaluated in sandboxed environments. In contrast, creative tasks involve subjective qualities such as aesthetics, which lack clear ground-truth answers and are inherently difficult to evaluate. While standard LLM-as-a-Judge approaches can be used here, they often suffer from coarse-grained scoring.</p>
       <p>In this blog, we explore how LLM-as-a-Verifier, a verification scaling framework, can improve the effectiveness of RL in non-verifiable domains, using painting as a case study. We validate this in the strictest setting, self-verification, using Inkling-Small as both generator and verifier. Specifically, we demonstrate that compared to standard LLM-as-a-Judge:</p>
       <ul class="claims">
-        <li><b>Verifiers provide more effective reward signals for RL.</b> By scaling verification along 3 dimensions—score granularity, repeated evaluation, and criteria decomposition—LLM-as-a-Verifier significantly improves the sample efficiency of RL for painting.</li>
+        <li><b>Verifiers provide more effective reward signals for RL.</b> By scaling verification along 3 dimensions—score granularity, repeated evaluation, and criteria decomposition—LLM-as-a-Verifier significantly improves the sample efficiency of RL for painting, reaching the same held-out scores in up to 1.69× fewer training steps.</li>
         <li><b>Verifiers better align with human preferences.</b> LLM-as-a-Verifier produces evaluation scores that correlate more strongly with human judgments of the aesthetic quality of paintings.</li>
         <li><b>Verifier provides better signals for test-time scaling.</b> By evaluating and selecting among multiple generated paintings, LLM-as-a-Verifier provides effective signals for test-time selection, significantly improving the quality of the final outputs.</li>
       </ul>
 
       <h2 id="paintings-over-rl-training">Painting Quality over RL training</h2>
       <figure class="demo-grid" id="fig-painting-rl-demos">
-          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>100</span><span>200</span><span>300</span><span>400</span></div></div>
+          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>0</span><span>200</span><span>400</span><span>800</span></div></div>
           <div class="demo-row">
             <div class="demo-head"><span class="demo-subject">pear on table</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/ochre-pear-iter1.jpg" alt="pear on table, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter2.jpg" alt="pear on table, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter3.jpg" alt="pear on table, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter4.jpg" alt="pear on table, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row" hidden>
-            <div class="demo-head"><span class="demo-subject">violet daisy</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/violet-daisy-iter1.jpg" alt="violet daisy, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter2.jpg" alt="violet daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter3.jpg" alt="violet daisy, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter4.jpg" alt="violet daisy, step 400" width="420" height="420" loading="lazy"></figure></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/ochre-pear-iter1.jpg" alt="pear on table, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter2.jpg" alt="pear on table, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter3.jpg" alt="pear on table, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter4.jpg" alt="pear on table, step 800" width="420" height="420" loading="lazy"></figure></div>
           </div>
           <div class="demo-row">
             <div class="demo-head"><span class="demo-subject">mountain at dawn</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/mountain-dawn-iter1.jpg" alt="mountain at dawn, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter2.jpg" alt="mountain at dawn, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter3.jpg" alt="mountain at dawn, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter4.jpg" alt="mountain at dawn, step 400" width="420" height="420" loading="lazy"></figure></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/mountain-dawn-iter1.jpg" alt="mountain at dawn, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter2.jpg" alt="mountain at dawn, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter3.jpg" alt="mountain at dawn, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter4.jpg" alt="mountain at dawn, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">violet daisy</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/violet-daisy-iter1.jpg" alt="violet daisy, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter2.jpg" alt="violet daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter3.jpg" alt="violet daisy, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter4.jpg" alt="violet daisy, step 800" width="420" height="420" loading="lazy"></figure></div>
           </div>
           <div class="demo-row demo-chart-row">
             <div class="demo-head"><span class="demo-subject">verifier vs. judge</span></div>
             <div class="chart" id="v3-chart"></div>
           </div>
-        <figcaption><b>Top:</b> paintings at steps 100, 200, 300 and 400 of RL training using LLM-as-a-Verifier as reward. <b>Bottom:</b> Held-out scores throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the mean scores assigned by Kimi-K2.6 to 250 samples across three seeds. By step 500, the verifier achieves a 7% absolute improvement over the judge (0.761 vs. 0.693).</figcaption>
+        <figcaption><b>Top:</b> paintings at steps 0, 200, 400 and 800 of RL training using LLM-as-a-Verifier as reward; more examples are in the <a href="#appendix">Appendix</a>. <b>Bottom:</b> Held-out scores throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the mean scores assigned by DeepSeek-V4.1-Flash to 250 samples across three seeds. By step 800, the verifier achieves an 8% absolute improvement over the judge (0.765 vs. 0.686).</figcaption>
       </figure>
 
       <h2 id="limitations-of-llm-as-a-judge">Limitations of LLM-as-a-Judge</h2>
-      <p>A common approach to RL in non-verifiable domains is to use an LLM-as-a-Judge to provide reward signals. However, standard LLM judges often suffer from coarse-grained scoring, making it difficult to distinguish between outputs of similar quality. For example, when evaluating two paintings, an LLM judge may assign both a score of 5, resulting in a tie despite meaningful differences in their aesthetic quality.</p>
+      <p>A common approach to RL in non-verifiable domains is to use an LLM-as-a-Judge to provide reward signals. However, standard LLM judges often suffer from coarse-grained scoring, making it difficult to distinguish between outputs of similar quality. For example, when evaluating three paintings, an LLM judge may assign all of them a score of 5, resulting in a tie despite meaningful differences in their aesthetic quality.</p>
 
       <figure class="tie-fig" id="fig-judge-tie">
         <div class="tie-pair">
-          <div class="tie-item"><img src="1.jpg" alt="A loose pink watercolor daisy with a pale yellow center and a small green leaf" width="420" height="420" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
+          <div class="tie-item"><img src="demos/grape-tie-3.webp?v=leafup" alt="A bunch of distinct violet watercolor grapes with a green leaf, hanging from a vine over a soft lavender wash background" width="384" height="384" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
           <div class="tie-eq" aria-hidden="true">=</div>
-          <div class="tie-item"><img src="2.jpg" alt="A fuller, more saturated crimson watercolor daisy with layered petals and a golden center" width="420" height="420" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
+          <div class="tie-item"><img src="demos/grape-tie-2.webp" alt="A dense cluster of overlapping violet and blue watercolor grapes with a small green leaf" width="384" height="384" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
+          <div class="tie-eq" aria-hidden="true">=</div>
+          <div class="tie-item"><img src="demos/grape-tie-1.webp" alt="A hanging bunch of large, translucent violet grape circles with thin gold outlines on a thin stem" width="384" height="384" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
         </div>
-        <figcaption>An LLM judge gives both paintings the same score of 5, a tie, despite clear differences in their aesthetic quality.</figcaption>
+        <figcaption>An LLM judge gives all three paintings the same score of 5, a three-way tie, despite clear differences in their aesthetic quality.</figcaption>
       </figure>
 
-      <p>We also observe that this tie rate increases as RL training progresses, as the model produces increasingly competitive outputs that become harder to distinguish using discrete scores. The tie rate rises from 27% over the first 50 steps to about 40% by step 250.</p>
+      <p>We also observe that this tie rate increases as RL training progresses, as the model produces increasingly competitive outputs that become harder to distinguish using discrete scores. The tie rate rises from 33% over the first 50 steps to about 61% by step 800.</p>
 
-      <figure class="right-wide" id="fig-tie-rate">
+      <figure id="fig-tie-rate">
         <div class="chart" id="tie-chart"></div>
-        <figcaption>Tie rate throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the share of rollout groups whose top score is tied, smoothed over 20 steps. The judge's tie rate rises to about 40% by step 250, while the verifier never ties.</figcaption>
+        <figcaption>Tie rate throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the share of rollout groups whose top score is tied, smoothed over 20 steps. The judge's tie rate rises to about 61% by step 800, while the verifier never ties.</figcaption>
       </figure>
 
       <h2 id="how-does-llm-as-a-verifier-work">How does LLM-as-a-Verifier work?</h2>
-      <p>Given a painting prompt \(x\), a model \(p_\theta\), a criterion \(c\), and two candidate paintings \(\tau_i\) and \(\tau_j\) rendered from the policy's sketches, we construct scoring prompts and obtain their conditional distributions \(p_{\theta}(v \mid x,c,\tau_i)\) and \(p_{\theta}(v \mid x, c, \tau_j)\) by extracting the logprobs from <code>&lt;score_A&gt;</code> and <code>&lt;score_B&gt;</code> tags using the following prompt:</p>
+      <p>Given a painting prompt \(x\), a model \(p_\theta\), a criterion \(c\), and two candidate paintings \(\tau_i\) and \(\tau_j\) rendered from the policy's sketches, we construct scoring prompts and obtain their conditional distributions \(p_{\theta}(v \mid x,c,\tau_i)\) and \(p_{\theta}(v \mid x, c, \tau_j)\) by extracting the logprobs from <code class="score-tag">&lt;score_A&gt;</code> and <code class="score-tag">&lt;score_B&gt;</code> tags using the following prompt:</p>
       <pre class="prompt-box">You are an expert watercolor reviewer. You will see a painting prompt and two paintings.
 
 Evaluation Criterion: <span class="ph">{criterion}</span>
@@ -472,102 +483,99 @@ Carefully analyze each painting, then provide your final scores:
 Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = poor, 10 = acceptable, 20 = excellent)</pre>
       <p>Rather than collapsing each distribution to a single discrete score, we approximate the reward of a painting as:</p>
       <div class="eq-box">\[ R(x, \tau) = \frac{1}{CK} \sum_{c=1}^{C} \sum_{k=1}^{K} \sum_{g=1}^{G} p_{\theta}(v_g \mid x, c, \tau)\,\phi(v_g) \]</div>
-      <p>where \(C\) is the number of evaluation criteria, \(K\) is the number of repeated verifications, \(G\) is the number of score tokens (granularity level), \(p_{\theta}(v_g \mid x, c, \tau)\) is the probability assigned by model \(\theta\) to score token \(v_g\), and \(\phi(v_g)\) maps each score token to a scalar value. See <a href="https://llm-as-a-verifier.com/" target="_blank" rel="noopener">llm-as-a-verifier.com</a> for details.</p>
+      <p>where \(C\) is the number of evaluation criteria, \(K\) is the number of repeated verifications, \(G\) is the number of score tokens (granularity level), \(p_{\theta}(v_g \mid x, c, \tau)\) is the probability assigned by model \(\theta\) to score token \(v_g\), and \(\phi(v_g)\) maps each score token to a scalar value. See <a href="https://llm-as-a-verifier.com/" target="_blank" rel="noopener">LLM-as-a-Verifier</a> for more details.</p>
 
       <h2 id="rl-training-pipeline">RL Training Pipeline</h2>
       <p>Given a text prompt (e.g., “a pear in watercolor”), Inkling-Small generates a JavaScript sketch using the p5.brush library. The sketch is executed in a sandboxed Puppeteer environment to produce a rendered PNG image. The resulting painting is then evaluated by the same model, Inkling-Small, through LLM-as-a-Verifier, which assigns fine-grained scores to assess its visual quality and alignment with the input prompt. These scores are normalized within each group and used to optimize the model via GRPO.</p>
 
-      <figure class="pipe-fig" id="fig-pipeline">
-        <div class="p2" id="pipe2" role="img" aria-label="RL training loop: a text prompt goes to Inkling-Small, which writes a p5.brush sketch; Puppeteer renders it to a PNG; LLM-as-a-Verifier compares paintings and assigns fine-grained scores; GRPO normalizes the scores within the group into advantages and updates the model, and the loop repeats with the updated policy.">
-          <ol class="p2-stages">
-            <li class="p2-stage"><span class="p2-num">Prompt</span>
-              <div class="p2-body p2-prompt"><span>“a pear in watercolor”</span></div>
-              <span class="p2-cap">text prompt</span></li>
-            <li class="p2-stage"><span class="p2-num">Inkling-Small</span>
-              <div class="p2-body p2-code"><code>brush.pick("pen")</code><code>brush.fill(ochre)</code><code>brush.bleed(0.2)</code><code>brush.polygon(…)</code></div>
-              <span class="p2-cap">writes p5.brush JS</span></li>
-            <li class="p2-stage"><span class="p2-num">Render</span>
-              <div class="p2-body p2-render"><img src="demos/ochre-pear-iter4.jpg" alt="" width="420" height="420"></div>
-              <span class="p2-cap">Puppeteer → PNG</span></li>
-            <li class="p2-stage p2-accent"><span class="p2-num">LLM-as-a-Verifier</span>
-              <div class="p2-body p2-verify">
-                <div class="p2-cand"><img src="demos/ochre-pear-iter3.jpg" alt="" width="420" height="420"><span class="p2-dist" style="--b1:.1;--b2:.35;--b3:.8;--b4:.45;--b5:.15"><i></i><i></i><i></i><i></i><i></i></span><b>0.61</b></div>
-                <div class="p2-cand"><img src="demos/ochre-pear-iter4.jpg" alt="" width="420" height="420"><span class="p2-dist" style="--b1:.05;--b2:.12;--b3:.3;--b4:.85;--b5:.5"><i></i><i></i><i></i><i></i><i></i></span><b>0.74</b></div>
-              </div>
-              <span class="p2-cap">fine-grained scores</span></li>
-            <li class="p2-stage"><span class="p2-num">GRPO</span>
-              <div class="p2-body p2-grpo"><span style="--a:.75"></span><span style="--a:-.35"></span><span style="--a:.2"></span><span style="--a:-.6"></span></div>
-              <span class="p2-cap">normalize → update</span></li>
-          </ol>
-          <svg class="p2-loop" viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><path d="M90 0V14H30V2" vector-effect="non-scaling-stroke"/></svg>
-          <span class="p2-loop-arrow" aria-hidden="true"></span>
-          <span class="p2-loop-lbl" aria-hidden="true">updated policy</span>
-        </div>
-        <figcaption>The RL training loop with LLM-as-a-Verifier. Inkling-Small is both the painter and the verifier. Paintings and scores shown are illustrative.</figcaption>
+      <figure class="fx fx-wide" id="fig-pipeline">
+        <div class="fx-pipe" id="fx-pipeline"></div>
+        <figcaption>Inkling-Small is both the painter and the verifier. The paintings are real grape samples, and the first is shown with its sketch; the scores are placeholders.</figcaption>
       </figure>
 
-      <p>As a baseline, we replace the verifier with the standard LLM-as-a-Judge, which scores each painting separately on a discrete scale. Everything else in the pipeline stays the same. The fine-grained verifier score improves sample efficiency by ≈1.5× on painting.</p>
+      <p>As a baseline, we replace the verifier with the standard LLM-as-a-Judge, which scores each painting separately on a discrete scale. Everything else in the pipeline stays the same. The fine-grained verifier score improves sample efficiency by 1.23–1.69× on painting, depending on the target score (see <a href="#painting-results">Results</a>).</p>
 
 
       <h2 id="painting-results">Results</h2>
-      <p>To quantify the sample efficiency gains from LLM-as-a-Verifier, we compare the number of RL training steps required to reach different target held-out scores. Across all three thresholds, LLM-as-a-Verifier consistently outperforms the standard LLM-as-a-Judge, reaching the same painting quality in fewer training steps. In particular, the verifier achieves a score of 0.65 in 200 steps, compared to 330 steps for the judge, representing a 1.65× improvement in sample efficiency. These results demonstrate that fine-grained verification provides more effective reward signals, enabling faster and more efficient RL training in creative domains.</p>
+      <p>To quantify the sample efficiency gains from LLM-as-a-Verifier, we compare the number of RL training steps required to reach different target held-out scores. Across all three thresholds, LLM-as-a-Verifier consistently outperforms the standard LLM-as-a-Judge, reaching the same painting quality in fewer training steps. The verifier reaches a score of 0.60 in 175 steps, compared to 215 steps for the judge (1.23×); 0.65 in 260 steps, compared to 400 (1.54×); and 0.68 in 360 steps, compared to 610 (1.69×). The gap widens as the target rises, from 40 steps saved at 0.60 to 250 steps saved at 0.68. These results demonstrate that fine-grained verification provides more effective reward signals, enabling faster and more efficient RL training in creative domains.</p>
 
       <div class="table-wrap" id="tbl-sample-efficiency">
         <div class="table-title">Sample Efficiency on Painting (Inkling-Small + GRPO)</div>
         <div class="table-sub">Training steps required to reach each target held-out score (averaged over 3 seeds).</div>
         <table>
-          <thead><tr><th class="num">Target score</th><th class="num">LLM-as-a-Judge</th><th class="num">LLM-as-a-Verifier</th><th class="num">Steps saved</th><th class="num">Speedup</th></tr></thead>
-          <tbody><tr><td class="num">0.60</td><td class="num">180</td><td class="num">140</td><td class="num">40</td><td class="num"><b>1.29×</b></td></tr><tr><td class="num">0.65</td><td class="num">330</td><td class="num">200</td><td class="num">130</td><td class="num"><b>1.65×</b></td></tr><tr><td class="num">0.68</td><td class="num">400</td><td class="num">260</td><td class="num">140</td><td class="num"><b>1.54×</b></td></tr></tbody>
+          <thead><tr><th class="num">Target score</th><th class="num">LLM-as-a-Judge</th><th class="num ver-col">LLM-as-a-Verifier</th><th class="num">Steps saved</th><th class="num">Speedup</th></tr></thead>
+          <tbody><tr><td class="num">0.60</td><td class="num">215</td><td class="num">175</td><td class="num">40</td><td class="num"><b>1.23×</b></td></tr><tr><td class="num">0.65</td><td class="num">400</td><td class="num">260</td><td class="num">140</td><td class="num"><b>1.54×</b></td></tr><tr><td class="num">0.68</td><td class="num">610</td><td class="num">360</td><td class="num">250</td><td class="num"><b>1.69×</b></td></tr></tbody>
         </table>
       </div>
 
-      <figure class="demo-grid" id="fig-more-paintings">
-          <div class="table-title">More Paintings over RL Training</div>
-          <div class="table-sub">Prompts not shown above, at steps 100, 200, 300 and 400 of RL training using LLM-as-a-Verifier as reward.</div>
-          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>100</span><span>200</span><span>300</span><span>400</span></div></div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">teal forest path</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/teal-forest-path-iter1.jpg" alt="teal forest path, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter2.jpg" alt="teal forest path, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter3.jpg" alt="teal forest path, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter4.jpg" alt="teal forest path, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">rose pink cactus</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-cactus-iter1.jpg" alt="rose pink cactus, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter2.jpg" alt="rose pink cactus, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter3.jpg" alt="rose pink cactus, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter4.jpg" alt="rose pink cactus, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">crimson daisy</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/crimson-daisy-iter1.jpg" alt="crimson daisy, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter2.jpg" alt="crimson daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter3.jpg" alt="crimson daisy, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter4.jpg" alt="crimson daisy, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">rose pink lighthouse on a rocky coast</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter1.jpg" alt="rose pink lighthouse on a rocky coast, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter2.jpg" alt="rose pink lighthouse on a rocky coast, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter3.jpg" alt="rose pink lighthouse on a rocky coast, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-lighthouse-on-a-rocky-coast-iter4.jpg" alt="rose pink lighthouse on a rocky coast, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">rose pink koi fish</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-koi-fish-iter1.jpg" alt="rose pink koi fish, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter2.jpg" alt="rose pink koi fish, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter3.jpg" alt="rose pink koi fish, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter4.jpg" alt="rose pink koi fish, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">indigo cherry blossom branch</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter1.jpg" alt="indigo cherry blossom branch, step 100" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter2.jpg" alt="indigo cherry blossom branch, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter3.jpg" alt="indigo cherry blossom branch, step 300" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter4.jpg" alt="indigo cherry blossom branch, step 400" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-      </figure>
 
       <h2 id="painting-conclusion">Conclusion</h2>
       <p>In this work, we demonstrate that <strong>scaling verification can make reinforcement learning more effective in creative, non-verifiable domains</strong>, using watercolor painting as a case study. Even in the challenging setting of self-verification, where Inkling-Small serves as both the generator and verifier, LLM-as-a-Verifier provides more informative reward signals than conventional LLM-as-a-Judge approaches.</p>
-      <p>By scaling score granularity, repeated evaluation, and criteria decomposition, LLM-as-a-Verifier reduces scoring ties, improves alignment with human preferences, and achieves approximately <strong>1.5× better sample efficiency</strong> during RL training.</p>
+      <p>By scaling score granularity, repeated evaluation, and criteria decomposition, LLM-as-a-Verifier reduces scoring ties, improves alignment with human preferences, and achieves up to <strong>1.69× better sample efficiency</strong> during RL training (1.23–1.69× across target scores).</p>
       <p>More broadly, our results suggest that <strong>the effectiveness of RL depends not only on the capabilities of the policy, but also on the quality of its reward signals</strong>. While much of the recent progress in RL has focused on domains with objectively verifiable outcomes, scaling verification offers a promising path toward extending these gains to subjective and creative tasks, where reliable reward signals are difficult to obtain.</p>
 
       <h2 id="citation">Citation</h2>
       <p>Please cite this work as:</p>
-      <p>Kwok, Jacky, Surya Narreddi, Neal Wu and Simon Guo, “Scaling RL for Creative Tasks with Self-Verification”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
+      <p>Kwok, Jacky, Surya Narreddi, Neal Wu, Cameron Franz and Simon Guo, “Training LLMs to Paint with RL and Self-Verification”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
       <p>BibTeX:</p>
       <div class="cite" id="cite"><button class="copy" onclick="copyCite(this)">Copy</button>@article{kwok2026creative,
-  author = {Kwok, Jacky and Narreddi, Surya and Wu, Neal and Guo, Simon},
-  title = {Scaling RL for Creative Tasks with Self-Verification},
+  author = {Kwok, Jacky and Narreddi, Surya and Wu, Neal and Franz, Cameron and Guo, Simon},
+  title = {Training LLMs to Paint with RL and Self-Verification},
   journal = {Thinking Machines Lab: Connectionism},
   year = {2026},
   month = {Nov}
 }</div>
+      <p>Please also consider citing:</p>
+      <div class="cite" id="cite-verifier"><button class="copy" onclick="copyCite(this)">Copy</button>@misc{kwok2026llmasaverifiergeneralpurposeverificationframework,
+  title = {LLM-as-a-Verifier: A General-Purpose Verification Framework},
+  author = {Jacky Kwok and Shulu Li and Pranav Atreya and Yuejiang Liu and Yixing Jiang and Chelsea Finn and Marco Pavone and Ion Stoica and Azalia Mirhoseini},
+  year = {2026},
+  eprint = {2607.05391},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.AI},
+  url = {https://arxiv.org/abs/2607.05391},
+}</div>
 
+      <h2 id="appendix">Appendix</h2>
+      <figure class="demo-grid" id="fig-more-paintings">
+          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>0</span><span>200</span><span>400</span><span>800</span></div></div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">crimson daisy</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/crimson-daisy-iter1.jpg" alt="crimson daisy, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter2.jpg" alt="crimson daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter3.jpg" alt="crimson daisy, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter4.jpg" alt="crimson daisy, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">rose pink cactus</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-cactus-iter1.jpg" alt="rose pink cactus, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter2.jpg" alt="rose pink cactus, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter3.jpg" alt="rose pink cactus, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-cactus-iter4.jpg" alt="rose pink cactus, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">indigo cherry blossom branch</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter1.jpg" alt="indigo cherry blossom branch, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter2.jpg" alt="indigo cherry blossom branch, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter3.jpg" alt="indigo cherry blossom branch, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/indigo-cherry-blossom-branch-iter4.jpg" alt="indigo cherry blossom branch, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">teal hot air balloon</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/teal-hot-air-balloon-iter1.jpg" alt="teal hot air balloon, step 0" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/teal-hot-air-balloon-iter2.jpg" alt="teal hot air balloon, step 200" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/teal-hot-air-balloon-iter3.jpg" alt="teal hot air balloon, step 400" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/teal-hot-air-balloon-iter4.jpg" alt="teal hot air balloon, step 800" width="320" height="320" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">teal forest path</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/teal-forest-path-iter1.jpg" alt="teal forest path, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter2.jpg" alt="teal forest path, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter3.jpg" alt="teal forest path, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/teal-forest-path-iter4.jpg" alt="teal forest path, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">charcoal gray windmill</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/charcoal-gray-windmill-iter1.jpg" alt="charcoal gray windmill, step 0" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/charcoal-gray-windmill-iter2.jpg" alt="charcoal gray windmill, step 200" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/charcoal-gray-windmill-iter3.jpg" alt="charcoal gray windmill, step 400" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/charcoal-gray-windmill-iter4.jpg" alt="charcoal gray windmill, step 800" width="320" height="320" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">crimson hot air balloon</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/crimson-hot-air-balloon-iter1.jpg" alt="crimson hot air balloon, step 0" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-hot-air-balloon-iter2.jpg" alt="crimson hot air balloon, step 200" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-hot-air-balloon-iter3.jpg" alt="crimson hot air balloon, step 400" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-hot-air-balloon-iter4.jpg" alt="crimson hot air balloon, step 800" width="320" height="320" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">emerald sunflower</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/emerald-sunflower-iter1.jpg" alt="emerald sunflower, step 0" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/emerald-sunflower-iter2.jpg" alt="emerald sunflower, step 200" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/emerald-sunflower-iter3.jpg" alt="emerald sunflower, step 400" width="320" height="320" loading="lazy"></figure><figure class="iter"><img src="demos/emerald-sunflower-iter4.jpg" alt="emerald sunflower, step 800" width="320" height="320" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">rose pink koi fish</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/rose-pink-koi-fish-iter1.jpg" alt="rose pink koi fish, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter2.jpg" alt="rose pink koi fish, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter3.jpg" alt="rose pink koi fish, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/rose-pink-koi-fish-iter4.jpg" alt="rose pink koi fish, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+      </figure>
 
       <div class="paginator"><a href="#">prev</a><a href="#top" onclick="scrollTo({top:0});return false">back to top</a><a href="#">next</a></div>
     </article>
@@ -596,98 +604,16 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 <script src="https://cdn.jsdelivr.net/npm/p5.brush@1.1.4/dist/p5.brush.js"></script>
 <script src="flower.js"></script>
 
+<!-- the painter shared by the cover (its stroke worker is js/strokes.js) -->
+<script src="js/painter.js"></script>
+<script src="js/hero.js"></script>
+<script src="js/figures/core.js"></script>
+<script src="js/figures/data.js"></script>
+<script src="js/figures/pipeline.js"></script>
+
 <script>
-/* ---------- Cover: run the sketch file for real, replaying its brush calls as the code types ---------- */
-(function(){
-  const host=document.getElementById('tk-canvas-host');if(!host)return;
-  const pre=document.getElementById('tk-pre'),bar=document.getElementById('tk-bar'),stepEl=document.getElementById('tk-step'),
-        callEl=document.getElementById('tk-layers'),btn=document.getElementById('tk-pause'),icon=document.getElementById('tk-pause-icon'),
-        root=document.getElementById('tk-paint');
-  if(typeof window.setup!=='function'||!window.brush||!window.p5){host.textContent='p5.brush failed to load';return}
-  const FILE='flower.js',PAPER='#f3f3f2';
-  const WRAP=['pick','stroke','strokeWeight','noStroke','fill','noFill','bleed','fillTexture','hatch','noHatch','set','scaleBrushes',
-              'field','noField','line','polygon','circle','rect','flowLine','spline','plot'];
-  const DRAWS=new Set(['background','line','polygon','circle','rect','flowLine','spline','plot']);
-  const Q=[],ORIG={};let realBg;
-  // Which line of the sketch made this call (works for Chrome, Safari and Firefox stack formats)
-  const SRC=new RegExp(FILE.replace(/\./g,'\\.')+':(\\d+):\\d+');
-  const lineOf=()=>{const m=(new Error().stack||'').match(SRC);return m?+m[1]:0};
-
-  // ---- capture: run the user's setup() for real, but queue every drawing-related call ----
-  const userSetup=window.setup;
-  window.setup=function(){
-    realBg=window.background;
-    window.background=(...a)=>Q.push({name:'background',args:a,line:lineOf()});
-    WRAP.forEach(k=>{if(typeof brush[k]==='function'){ORIG[k]=brush[k];brush[k]=(...a)=>Q.push({name:k,args:a,line:lineOf()})}});
-    userSetup();
-    window.background=realBg;WRAP.forEach(k=>{if(ORIG[k])brush[k]=ORIG[k]});
-    const cv=document.getElementById('defaultCanvas0');if(cv)host.appendChild(cv);
-    realBg(PAPER);
-    stepEl.textContent=`call 0 / ${Q.filter(c=>DRAWS.has(c.name)).length}`;
-    if(!started)noLoop();
-  };
-  function run(c){if(c.name==='background')realBg(...c.args);else ORIG[c.name](...c.args)}
-
-  // ---- code panel ----
-  const RX=/(\/\/.*$)|("[^"]*")|\b(function|let|for|const)\b|\b(\d+(?:\.\d+)?)\b|([A-Za-z_]\w*)(?=\()/g;
-  function tokens(src){const out=[];let i=0,m;RX.lastIndex=0;
-    while((m=RX.exec(src))){if(m.index>i)out.push(['',src.slice(i,m.index)]);
-      out.push([m[1]?'com':m[2]?'str':m[3]?'kw':m[4]?'num':'fn',m[0]]);i=m.index+m[0].length}
-    if(i<src.length)out.push(['',src.slice(i)]);return out}
-  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  function html(tok,n){let s='',left=n;for(const [c,t] of tok){if(left<=0)break;const part=t.slice(0,left);left-=part.length;
-    s+=c?`<span class="tk-${c}">${esc(part)}</span>`:esc(part)}return s}
-  const wrap=(s,caret)=>`<span class="tk-c">${s||'\u200b'}${caret?'<span class="tk-caret"></span>':''}</span>`;
-  let CODE=[],TOK=[],lineEls=[];
-  fetch(FILE,{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{
-    CODE=t.replace(/\s+$/,'').split('\n');TOK=CODE.map(tokens);
-    pre.innerHTML=CODE.map((l,i)=>`<span class="tk-line" data-n="${i+1}"></span>`).join('');lineEls=[...pre.children];
-    reset();
-  }).catch(()=>{CODE=[];pre.textContent='// could not load '+FILE});
-
-  // ---- playback: type the file; when a line is done, the calls it made run on the real canvas ----
-  const CPS=20/4,DRAW_GAP=55,HOLD=5000;
-  let line=0,chars=0,typed=0,next=0,drawn=0,lastDraw=0,pauseUntil=0,holdUntil=0,paused=false,started=false,shown=-1;
-  const indent=i=>(CODE[i]?.match(/^\s*/)||[''])[0].length;
-  function reset(){line=0;chars=indent(0);typed=0;next=0;drawn=0;holdUntil=0;pauseUntil=0;shown=-1;
-    if(realBg)realBg(PAPER);lineEls.forEach(l=>{l.innerHTML='';l.classList.remove('on')});pre.scrollTop=0;scrollTarget=0}
-  // Ease the code panel toward the current line every frame (keeps up even when typing is fast)
-  let scrollTarget=0;
-  function follow(){
-    if(shown!==line&&line<CODE.length){shown=line;scrollTarget=Math.max(0,lineEls[line].offsetTop-pre.clientHeight*.45)}
-    const d=scrollTarget-pre.scrollTop;if(Math.abs(d)>.5)pre.scrollTop+=d*.22}
-  const totalDraws=()=>Q.filter(c=>DRAWS.has(c.name)).length;
-  function render(){lineEls.forEach((el,i)=>el.classList.toggle('on',i===line));
-    if(line<CODE.length)lineEls[line].innerHTML=wrap(html(TOK[line],Math.floor(chars)),true);
-    stepEl.textContent=`call ${drawn} / ${totalDraws()}`;
-    const total=CODE.reduce((s,l)=>s+l.length+1,0)||1,done=CODE.slice(0,line).reduce((s,l)=>s+l.length+1,0)+Math.min(chars,CODE[line]?.length||0);
-    bar.style.width=Math.min(100,done/total*100)+'%';follow()}
-  window.draw=function(){
-    if(paused||!CODE.length)return;const now=performance.now();
-    if(holdUntil){if(now>holdUntil)reset();return}
-    // run every queued call whose source line has been typed; brush strokes land one at a time
-    while(next<Q.length&&Q[next].line<=typed){const c=Q[next];
-      if(DRAWS.has(c.name)){if(now-lastDraw<DRAW_GAP)break;run(c);lastDraw=now;drawn++;next++;callEl.textContent=(c.name==='background'?'':'brush.')+c.name;break}
-      run(c);next++}
-    const waiting=next<Q.length&&Q[next].line<=typed; // keep typing in step with the painting
-    if(line>=CODE.length){if(!waiting&&next>=Q.length)holdUntil=now+HOLD}
-    else if(!waiting&&now>pauseUntil){
-      chars+=deltaTime*CPS;
-      if(chars>=CODE[line].length){lineEls[line].innerHTML=wrap(html(TOK[line],1e9));typed=line+1;line++;chars=indent(line);
-        pauseUntil=now+(CODE[line-1].trim()?1:.5)}
-    }
-    render();
-  };
-  btn.addEventListener('click',()=>{paused=!paused;btn.setAttribute('aria-label',paused?'Play animation':'Pause animation');
-    icon.setAttribute('d',paused?'M4 2l8 5-8 5z':'M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z')});
-  if(matchMedia('(prefers-reduced-motion:reduce)').matches){ // paint the finished sketch, show the full file
-    window.draw=function(){if(!CODE.length)return;while(next<Q.length){run(Q[next]);next++}drawn=totalDraws();
-      lineEls.forEach((el,i)=>el.innerHTML=wrap(html(TOK[i],1e9)));line=CODE.length;render();noLoop()};started=true;return}
-  new IntersectionObserver(es=>es.forEach(en=>{started=en.isIntersecting;
-    if(typeof loop==='function'&&typeof noLoop==='function'&&realBg){en.isIntersecting?loop():noLoop()}}),{threshold:.15}).observe(root);
-})();
-
 /* ---------- TOC ---------- */
+(function(){const wide=document.querySelectorAll('.demo-grid,figure.fx-wide,figure.right-wide');if(!wide.length||!('IntersectionObserver' in window))return;const on=new Set();const io=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?on.add(e.target):on.delete(e.target));document.body.classList.toggle('toc-hide',on.size>0)},{rootMargin:'-15% 0px -15% 0px'});wide.forEach(f=>io.observe(f))})();
 (function(){const ul=document.querySelector('#toc ul');let cur=null;
 const items=[{id:'introduction',text:'Introduction',tag:'H2'},...[...document.querySelectorAll('#article h2, #article h3')].filter(h=>!h.closest('[hidden]')).map(h=>({id:h.id,text:h.textContent,tag:h.tagName}))];
 items.forEach(h=>{const li=document.createElement('li');li.innerHTML=`<a href="#${h.id}">${h.text}</a>`;
@@ -705,60 +631,53 @@ const tip=document.getElementById('tip');
 function bindTip(el,text){el.addEventListener('mousemove',e=>{tip.textContent=text;tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-28+'px';tip.style.opacity=1});
 el.addEventListener('mouseleave',()=>tip.style.opacity=0)}
 
-/* ---------- Verifier vs judge: held-out score over training (3 seeds per arm) ---------- */
+/* ---------- Verifier vs judge: held-out score over training (mean of 3 seeds per arm) ---------- */
 (function(){
   const el=document.getElementById('v3-chart');if(!el)return;
-  const SEEDS={"verifier":[[[0,0.5466],[5,0.5478],[10,0.5184],[15,0.5343],[20,0.5198],[25,0.5216],[30,0.5372],[35,0.5494],[40,0.5433],[45,0.5437],[50,0.5286],[55,0.5317],[60,0.5501],[65,0.5291],[70,0.543],[75,0.5525],[80,0.5501],[85,0.5491],[90,0.5556],[95,0.5589],[100,0.5711],[105,0.5804],[110,0.5985],[115,0.579],[120,0.5952],[125,0.5741],[130,0.5819],[135,0.5883],[140,0.616],[145,0.6159],[150,0.6313],[155,0.6196],[160,0.6396],[165,0.6397],[170,0.6315],[175,0.612],[180,0.6443],[185,0.6386],[190,0.6597],[195,0.6424],[200,0.6525],[205,0.6551],[210,0.6326],[215,0.6464],[220,0.6536],[225,0.646],[230,0.6541],[235,0.6702],[240,0.6519],[245,0.6435],[250,0.6526],[255,0.6571],[260,0.6519],[265,0.6581],[270,0.6528],[275,0.647],[280,0.677],[285,0.6559],[290,0.6687],[295,0.6731],[300,0.6685],[305,0.6824],[310,0.6917],[315,0.6982],[320,0.6902],[325,0.6912],[330,0.6884],[335,0.692],[340,0.6995],[345,0.6873],[350,0.6971],[355,0.6948],[360,0.7072],[365,0.7033],[370,0.6944],[375,0.7142],[380,0.6995],[385,0.7175],[390,0.7092],[395,0.7237],[400,0.7149]],[[0,0.5273],[10,0.5408],[20,0.5581],[30,0.5432],[40,0.5441],[50,0.538],[60,0.5206],[70,0.5545],[80,0.5549],[90,0.5699],[100,0.5742],[110,0.5794],[120,0.5819],[130,0.5938],[140,0.6054],[150,0.6039],[160,0.6168],[170,0.6218],[180,0.6284],[190,0.6418],[200,0.6713],[210,0.6682],[220,0.674],[230,0.7016],[240,0.7171],[250,0.6997],[260,0.7053],[270,0.6975],[280,0.7123],[290,0.7044],[300,0.6862],[310,0.6838],[320,0.6906],[330,0.7083],[340,0.6909],[350,0.6787],[360,0.703],[370,0.706],[380,0.7293],[390,0.723],[400,0.7213]],[[0,0.5425],[10,0.5489],[20,0.5498],[30,0.543],[40,0.5274],[50,0.5732],[60,0.5452],[70,0.5542],[80,0.5709],[90,0.5721],[100,0.5653],[110,0.585],[120,0.6104],[130,0.5984],[140,0.6177],[150,0.6222],[160,0.6345],[170,0.6344],[180,0.641],[190,0.6549],[200,0.6691],[210,0.6723],[220,0.6671],[230,0.6706],[240,0.6662],[250,0.6963],[260,0.7032],[270,0.6998],[280,0.6928],[290,0.6869],[300,0.7009],[310,0.7048],[320,0.7102],[330,0.7063],[340,0.6972],[350,0.7162],[360,0.715],[370,0.7161],[380,0.7178],[390,0.7353],[400,0.7248]]],"judge":[[[0,0.5369],[5,0.5453],[10,0.5339],[15,0.5369],[20,0.5295],[25,0.5369],[30,0.5218],[35,0.5158],[40,0.5306],[45,0.5476],[50,0.552],[55,0.5361],[60,0.5414],[65,0.5308],[70,0.54],[75,0.5474],[80,0.5409],[85,0.5532],[90,0.5543],[95,0.5651],[100,0.5511],[105,0.5531],[110,0.5777],[115,0.5671],[120,0.5676],[125,0.5814],[130,0.585],[135,0.5759],[140,0.5768],[145,0.5657],[150,0.5831],[155,0.5771],[160,0.5893],[165,0.6099],[170,0.5843],[175,0.6229],[180,0.6134],[185,0.6089],[190,0.596],[195,0.6091],[200,0.6173],[205,0.5873],[210,0.6084],[215,0.617],[220,0.6146],[225,0.6345],[230,0.6175],[235,0.6208],[240,0.6186],[245,0.6224],[250,0.6199],[255,0.6213],[260,0.6145],[265,0.6173],[270,0.6281],[275,0.6321],[280,0.6424],[285,0.6384],[290,0.6488],[295,0.6485],[300,0.6398],[305,0.65],[310,0.6529],[315,0.6618],[320,0.65],[325,0.6556],[330,0.6599],[335,0.656],[340,0.665],[345,0.656],[350,0.6483],[355,0.6701],[360,0.665],[365,0.6566],[370,0.6692],[375,0.6703],[380,0.666],[385,0.6827],[390,0.6848],[395,0.6698],[400,0.6849]],[[0,0.5463],[10,0.5515],[20,0.5507],[30,0.5424],[40,0.5429],[50,0.5538],[60,0.5378],[70,0.5593],[80,0.5501],[90,0.5619],[100,0.5748],[110,0.5866],[120,0.5965],[130,0.5968],[140,0.5971],[150,0.5916],[160,0.5828],[170,0.6019],[180,0.5966],[190,0.6144],[200,0.633],[210,0.6219],[220,0.6241],[230,0.629],[240,0.6558],[250,0.6206],[260,0.6285],[270,0.6325],[280,0.6435],[290,0.6627],[300,0.6547],[310,0.6604],[320,0.6741],[330,0.6856],[340,0.6861],[350,0.678],[360,0.6858],[370,0.6709],[380,0.6799],[390,0.6841],[400,0.6781]],[[0,0.5418],[10,0.5346],[20,0.5399],[30,0.5264],[40,0.558],[50,0.5357],[60,0.5541],[70,0.5529],[80,0.5788],[90,0.5679],[100,0.5586],[110,0.5803],[120,0.5928],[130,0.606],[140,0.6043],[150,0.5901],[160,0.6375],[170,0.6347],[180,0.6367],[190,0.6549],[200,0.6522],[210,0.648],[220,0.6431],[230,0.6601],[240,0.6618],[250,0.6249],[260,0.6252],[270,0.6304],[280,0.6335],[290,0.6296],[300,0.6427],[310,0.629],[320,0.6431],[330,0.6646],[340,0.6641],[350,0.6867],[360,0.6694],[370,0.6809],[380,0.6926],[390,0.691],[400,0.6952]]]}; // [step, score] pairs per seed
-  const ARMS=[['verifier','Verifier','ver'],['judge','Judge','jud']];
-  const W=720,H=360,m={l:34,r:86,t:30,b:40},X0=0,X1=500,Y0=.5,Y1=.77;
-  // Steps 410–500: mean of the 2 seeds that ran longer, traced from the report chart (approximate)
-  const AFTER={"verifier":[[410,0.7298],[420,0.7264],[430,0.7264],[440,0.7303],[450,0.7466],[460,0.7455],[470,0.7528],[480,0.7556],[490,0.7629],[500,0.7618]],"judge":[[410,0.6949],[420,0.6916],[430,0.6916],[440,0.7045],[450,0.7039],[460,0.6955],[470,0.6826],[480,0.6904],[490,0.6899],[500,0.6938]]};
+  const D=[[0,0.407,0.4253],[10,0.4623,0.4439],[20,0.4438,0.4562],[30,0.4813,0.4787],[40,0.4686,0.4782],[50,0.512,0.5101],[60,0.5122,0.5129],[70,0.5272,0.5255],[80,0.5483,0.5381],[90,0.5405,0.5465],[100,0.5444,0.5395],[110,0.5745,0.5605],[120,0.5789,0.5687],[130,0.5877,0.5719],[140,0.5783,0.5499],[150,0.5879,0.5531],[160,0.5784,0.5807],[170,0.568,0.573],[180,0.6071,0.5923],[190,0.5971,0.594],[200,0.6002,0.5872],[210,0.6107,0.5973],[220,0.6102,0.6004],[230,0.6115,0.6045],[240,0.6215,0.6042],[250,0.644,0.6163],[260,0.6508,0.6104],[270,0.6475,0.6153],[280,0.6482,0.6176],[290,0.6478,0.6345],[300,0.6523,0.6378],[310,0.651,0.6342],[320,0.6622,0.6403],[330,0.6597,0.6401],[340,0.6613,0.6411],[350,0.6754,0.6436],[360,0.6854,0.6236],[370,0.6696,0.6322],[380,0.6851,0.6446],[390,0.6915,0.649],[400,0.6826,0.6515],[410,0.6865,0.6426],[420,0.6884,0.6503],[430,0.6887,0.653],[440,0.6882,0.6345],[450,0.69,0.6303],[460,0.6713,0.647],[470,0.6882,0.6373],[480,0.6855,0.6351],[490,0.678,0.6421],[500,0.6902,0.6413],[510,0.6959,0.6488],[520,0.699,0.6537],[530,0.7018,0.6541],[540,0.703,0.6632],[550,0.7277,0.6756],[560,0.7262,0.6728],[570,0.7226,0.6683],[580,0.7229,0.6659],[590,0.7325,0.666],[600,0.7304,0.6693],[610,0.7398,0.6807],[620,0.7388,0.6785],[630,0.7489,0.6828],[640,0.7476,0.6855],[650,0.75,0.6868],[660,0.7539,0.6855],[670,0.7453,0.688],[680,0.7583,0.6884],[690,0.7595,0.6897],[700,0.7587,0.6918],[710,0.7552,0.6939],[720,0.7598,0.6885],[730,0.7653,0.6843],[740,0.7643,0.6771],[750,0.7659,0.6922],[760,0.7671,0.6979],[770,0.765,0.6892],[780,0.7651,0.6869],[790,0.7691,0.6871],[800,0.7648,0.6863]]; // [step, verifier mean, judge mean], every 10 steps
+  const ARMS=[['verifier','Verifier','ver',1],['judge','Judge','jud',2]];
+  const W=684,H=360,m={l:34,r:86,t:30,b:40},X0=0,X1=800,Y0=.4,Y1=.8;
   const x=v=>m.l+(v-X0)/(X1-X0)*(W-m.l-m.r),y=v=>m.t+(1-(v-Y0)/(Y1-Y0))*(H-m.t-m.b);
-  const path=pts=>pts.map(([a,b],i)=>(i?'L':'M')+x(a).toFixed(1)+' '+y(b).toFixed(1)).join('');
-  // mean over the steps every seed has
-  const mean=arm=>{const maps=SEEDS[arm].map(s=>new Map(s));return SEEDS[arm][1].map(([k])=>k).filter(k=>maps.every(mp=>mp.has(k))).map(k=>[k,maps.reduce((t,mp)=>t+mp.get(k),0)/maps.length])};
-  const M={verifier:mean('verifier'),judge:mean('judge')};
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: mean held-out score from step 0 to 500. The verifier rises from about 0.54 to 0.76; the judge rises from about 0.54 to 0.69.">`;
-  [.5,.6,.7].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${v.toFixed(1)}</text>`);
+  const path=k=>D.map((p,i)=>(i?'L':'M')+x(p[0]).toFixed(1)+' '+y(p[k]).toFixed(1)).join('');
+  const last=D[D.length-1],vE=last[1],jE=last[2];
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: mean held-out score from step 0 to 800. The verifier rises from about 0.41 to ${vE.toFixed(2)}; the judge rises from about 0.43 to ${jE.toFixed(2)}.">`;
+  [.4,.5,.6,.7,.8].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${v.toFixed(1)}</text>`);
   s+=`<text class="cap" x="${m.l-8}" y="${m.t-16}">Held-out score</text>`;
-  [0,100,200,300,400,500].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
+  [0,200,400,600,800].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
   s+=`<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${H-m.b}" y2="${H-m.b}"/><text class="cap" x="${W-m.r}" y="${H-4}" text-anchor="end">Training step</text>`;
-  ARMS.forEach(([arm,,c])=>s+=`<path class="mean s-${c} draw" d="${path(M[arm].concat(AFTER[arm]))}"/>`);
+  ARMS.forEach(([,,c,k])=>s+=`<path class="mean s-${c} draw" d="${path(k)}"/>`);
   // direct end labels, nudged apart if they collide
-  let ly=ARMS.map(([arm])=>y(AFTER[arm][AFTER[arm].length-1][1]));if(Math.abs(ly[0]-ly[1])<16){const c=(ly[0]+ly[1])/2;ly=[c-8,c+8]}
-  ARMS.forEach(([arm,label,c],i)=>{
-    s+=`<text class="end-lbl end-${c} fade" x="${x(X1)+16}" y="${ly[i]+4}">${label}</text>`});
-  // bracket + relative gap between the two lines at the final step
-  const vE=AFTER.verifier[AFTER.verifier.length-1][1],jE=AFTER.judge[AFTER.judge.length-1][1],bx=x(X1)+8;
+  let ly=[y(vE),y(jE)];if(Math.abs(ly[0]-ly[1])<16){const c=(ly[0]+ly[1])/2;ly=[c-8,c+8]}
+  ARMS.forEach(([,label,c],i)=>s+=`<text class="end-lbl end-${c} fade" x="${x(X1)+16}" y="${ly[i]+4}">${label}</text>`);
+  // bracket + gap between the two lines at the final step
+  const bx=x(X1)+8;
   s+=`<path class="gap fade" d="M${bx-3} ${y(vE)}H${bx}V${y(jE)}H${bx-3}"/><text class="gap-lbl fade" x="${x(X1)+16}" y="${(y(vE)+y(jE))/2+4}">+${Math.round((vE-jE)*100)}%</text>`;
   s+=`<line class="guide" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}"/><circle class="dot ver" r="4"/><circle class="dot jud" r="4"/>`;
   s+=`<rect class="hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/></svg>`;
   el.innerHTML=s;
   el.querySelectorAll('.draw').forEach(p=>p.style.setProperty('--len',p.getTotalLength()));
-  // hover: nearest shared step, readout of both means
-  const ALL={verifier:M.verifier.concat(AFTER.verifier),judge:M.judge.concat(AFTER.judge)};
+  // hover: nearest step, readout of both means
   const svg=el.querySelector('svg'),hit=el.querySelector('.hit'),guide=el.querySelector('.guide'),dv=el.querySelector('.dot.ver'),dj=el.querySelector('.dot.jud');
   hit.addEventListener('mousemove',e=>{const b=svg.getBoundingClientRect(),sx=(e.clientX-b.left)/b.width*W;
-    const k=ALL.verifier.reduce((best,p)=>Math.abs(x(p[0])-sx)<Math.abs(x(best[0])-sx)?p:best)[0];
-    const v=ALL.verifier.find(p=>p[0]===k)[1],j=ALL.judge.find(p=>p[0]===k)[1];
+    const [k,v,j]=D.reduce((best,p)=>Math.abs(x(p[0])-sx)<Math.abs(x(best[0])-sx)?p:best);
     guide.setAttribute('x1',x(k));guide.setAttribute('x2',x(k));guide.style.opacity=1;
     dv.setAttribute('cx',x(k));dv.setAttribute('cy',y(v));dj.setAttribute('cx',x(k));dj.setAttribute('cy',y(j));dv.style.opacity=dj.style.opacity=1;
-    tip.textContent=`Step ${k} · verifier ${v.toFixed(3)} · judge ${j.toFixed(3)}${k>400?' (2 seeds, approx.)':''}`;tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-30+'px';tip.style.opacity=1});
+    tip.textContent=`Step ${k} · verifier ${v.toFixed(3)} · judge ${j.toFixed(3)}`;tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-30+'px';tip.style.opacity=1});
   hit.addEventListener('mouseleave',()=>{guide.style.opacity=dv.style.opacity=dj.style.opacity=tip.style.opacity=0});
 })();
 
 /* ---------- Tie rate over training (from the runs' metrics.jsonl, 20-step moving average) ---------- */
 (function(){
   const el=document.getElementById('tie-chart');if(!el)return;
-  const D={"judge":[[0,0.125],[1,0.25],[2,0.2083],[3,0.2188],[4,0.2],[5,0.1905],[6,0.2347],[7,0.2366],[8,0.2381],[9,0.2268],[10,0.2175],[11,0.2098],[12,0.2321],[13,0.236],[14,0.2369],[15,0.2299],[16,0.2311],[17,0.2321],[18,0.2265],[19,0.2152],[20,0.2161],[21,0.2223],[22,0.2223],[23,0.2432],[24,0.2494],[25,0.2673],[26,0.261],[27,0.2673],[28,0.2735],[29,0.286],[30,0.2923],[31,0.311],[32,0.3074],[33,0.3098],[34,0.3045],[35,0.3107],[36,0.317],[37,0.3232],[38,0.317],[39,0.342],[40,0.3473],[41,0.3438],[42,0.35],[43,0.3354],[44,0.3479],[45,0.3354],[46,0.3167],[47,0.3042],[48,0.2917],[49,0.2854],[50,0.3015],[51,0.289],[52,0.2818],[53,0.2714],[54,0.283],[55,0.2768],[56,0.2643],[57,0.258],[58,0.2643],[59,0.2643],[60,0.2705],[61,0.2616],[62,0.2679],[63,0.2554],[64,0.2375],[65,0.2375],[66,0.25],[67,0.2687],[68,0.2687],[69,0.2687],[70,0.2402],[71,0.2402],[72,0.2509],[73,0.2571],[74,0.2759],[75,0.2759],[76,0.2884],[77,0.3045],[78,0.3107],[79,0.2857],[80,0.2732],[81,0.2795],[82,0.267],[83,0.2795],[84,0.2786],[85,0.2911],[86,0.2973],[87,0.2973],[88,0.3098],[89,0.3098],[90,0.3241],[91,0.3241],[92,0.3116],[93,0.3304],[94,0.3116],[95,0.3304],[96,0.3241],[97,0.308],[98,0.3143],[99,0.3393],[100,0.3455],[101,0.3393],[102,0.3393],[103,0.3393],[104,0.3455],[105,0.333],[106,0.3393],[107,0.3268],[108,0.3393],[109,0.3455],[110,0.35],[111,0.3563],[112,0.35],[113,0.3375],[114,0.3375],[115,0.3187],[116,0.325],[117,0.3438],[118,0.35],[119,0.3438],[120,0.3375],[121,0.3438],[122,0.35],[123,0.3438],[124,0.3396],[125,0.3458],[126,0.3333],[127,0.3271],[128,0.3083],[129,0.3083],[130,0.3021],[131,0.2958],[132,0.3021],[133,0.2958],[134,0.3021],[135,0.3146],[136,0.3271],[137,0.3021],[138,0.2896],[139,0.2708],[140,0.2771],[141,0.2708],[142,0.2771],[143,0.2771],[144,0.275],[145,0.2812],[146,0.2812],[147,0.2875],[148,0.2875],[149,0.2875],[150,0.2938],[151,0.3125],[152,0.3063],[153,0.3],[154,0.2875],[155,0.275],[156,0.25],[157,0.2625],[158,0.2625],[159,0.2687],[160,0.2687],[161,0.275],[162,0.275],[163,0.2687],[164,0.2875],[165,0.2875],[166,0.2875],[167,0.2938],[168,0.3],[169,0.2938],[170,0.3],[171,0.275],[172,0.2938],[173,0.3],[174,0.2875],[175,0.3],[176,0.3],[177,0.2938],[178,0.3063],[179,0.325],[180,0.3438],[181,0.35],[182,0.35],[183,0.3563],[184,0.35],[185,0.3438],[186,0.3438],[187,0.3625],[188,0.3625],[189,0.3812],[190,0.3625],[191,0.3688],[192,0.3563],[193,0.3563],[194,0.3688],[195,0.3812],[196,0.4062],[197,0.4062],[198,0.3937],[199,0.375],[200,0.3688],[201,0.3688],[202,0.3625],[203,0.35],[204,0.3375],[205,0.3438],[206,0.3563],[207,0.3375],[208,0.3438],[209,0.325],[210,0.3375],[211,0.325],[212,0.3312],[213,0.325],[214,0.3312],[215,0.325],[216,0.3187],[217,0.3187],[218,0.3187],[219,0.3312],[220,0.3125],[221,0.3],[222,0.3063],[223,0.3312],[224,0.3438],[225,0.3438],[226,0.3312],[227,0.3187],[228,0.3125],[229,0.3187],[230,0.3187],[231,0.3375],[232,0.3563],[233,0.3688],[234,0.3625],[235,0.3625],[236,0.3625],[237,0.375],[238,0.3937],[239,0.3875],[240,0.4],[241,0.4],[242,0.3937],[243,0.3937],[244,0.4],[245,0.4],[246,0.4062],[247,0.4375],[248,0.425],[249,0.4313],[250,0.425],[251,0.4313],[252,0.4188],[253,0.4125],[254,0.4062],[255,0.4],[256,0.3937],[257,0.3812],[258,0.375],[259,0.3937],[260,0.4],[261,0.4125],[262,0.425],[263,0.4188],[264,0.4062],[265,0.4],[266,0.3937],[267,0.3688],[268,0.3812],[269,0.3688],[270,0.3812],[271,0.375],[272,0.3625],[273,0.3688],[274,0.3812],[275,0.375],[276,0.3625],[277,0.375],[278,0.375],[279,0.3625],[280,0.3625],[281,0.35],[282,0.3563],[283,0.3563],[284,0.3625],[285,0.3688],[286,0.375]],"verifier":[[0,0.0],[1,0.0],[2,0.0],[3,0.0],[4,0.0],[5,0.0],[6,0.0],[7,0.0],[8,0.0],[9,0.0],[10,0.0],[11,0.0],[12,0.0],[13,0.0],[14,0.0],[15,0.0],[16,0.0],[17,0.0],[18,0.0],[19,0.0],[20,0.0],[21,0.0],[22,0.0],[23,0.0],[24,0.0],[25,0.0],[26,0.0],[27,0.0],[28,0.0],[29,0.0],[30,0.0],[31,0.0],[32,0.0],[33,0.0],[34,0.0],[35,0.0],[36,0.0],[37,0.0],[38,0.0],[39,0.0],[40,0.0],[41,0.0],[42,0.0],[43,0.0],[44,0.0],[45,0.0],[46,0.0],[47,0.0],[48,0.0],[49,0.0],[50,0.0],[51,0.0],[52,0.0],[53,0.0],[54,0.0],[55,0.0],[56,0.0],[57,0.0],[58,0.0],[59,0.0],[60,0.0],[61,0.0],[62,0.0],[63,0.0],[64,0.0],[65,0.0],[66,0.0],[67,0.0],[68,0.0],[69,0.0],[70,0.0],[71,0.0],[72,0.0],[73,0.0],[74,0.0],[75,0.0],[76,0.0],[77,0.0],[78,0.0],[79,0.0],[80,0.0],[81,0.0],[82,0.0],[83,0.0],[84,0.0],[85,0.0],[86,0.0],[87,0.0],[88,0.0],[89,0.0],[90,0.0],[91,0.0],[92,0.0],[93,0.0],[94,0.0],[95,0.0],[96,0.0],[97,0.0],[98,0.0],[99,0.0],[100,0.0],[101,0.0],[102,0.0],[103,0.0],[104,0.0],[105,0.0],[106,0.0],[107,0.0],[108,0.0],[109,0.0],[110,0.0],[111,0.0],[112,0.0],[113,0.0],[114,0.0],[115,0.0],[116,0.0],[117,0.0],[118,0.0],[119,0.0],[120,0.0],[121,0.0],[122,0.0],[123,0.0],[124,0.0],[125,0.0],[126,0.0],[127,0.0],[128,0.0],[129,0.0],[130,0.0],[131,0.0],[132,0.0],[133,0.0],[134,0.0],[135,0.0],[136,0.0],[137,0.0],[138,0.0],[139,0.0],[140,0.0],[141,0.0],[142,0.0],[143,0.0],[144,0.0],[145,0.0],[146,0.0],[147,0.0],[148,0.0],[149,0.0],[150,0.0],[151,0.0],[152,0.0],[153,0.0],[154,0.0],[155,0.0],[156,0.0],[157,0.0],[158,0.0],[159,0.0],[160,0.0],[161,0.0],[162,0.0],[163,0.0],[164,0.0],[165,0.0],[166,0.0],[167,0.0],[168,0.0],[169,0.0],[170,0.0],[171,0.0],[172,0.0],[173,0.0],[174,0.0],[175,0.0],[176,0.0],[177,0.0],[178,0.0],[179,0.0],[180,0.0],[181,0.0],[182,0.0],[183,0.0],[184,0.0],[185,0.0],[186,0.0],[187,0.0],[188,0.0],[189,0.0],[190,0.0],[191,0.0],[192,0.0],[193,0.0],[194,0.0],[195,0.0],[196,0.0],[197,0.0],[198,0.0],[199,0.0],[200,0.0],[201,0.0],[202,0.0],[203,0.0],[204,0.0],[205,0.0],[206,0.0],[207,0.0],[208,0.0],[209,0.0],[210,0.0],[211,0.0],[212,0.0],[213,0.0],[214,0.0],[215,0.0],[216,0.0],[217,0.0],[218,0.0],[219,0.0],[220,0.0],[221,0.0],[222,0.0],[223,0.0],[224,0.0],[225,0.0],[226,0.0],[227,0.0],[228,0.0],[229,0.0],[230,0.0],[231,0.0],[232,0.0],[233,0.0],[234,0.0],[235,0.0],[236,0.0],[237,0.0],[238,0.0],[239,0.0],[240,0.0],[241,0.0],[242,0.0],[243,0.0],[244,0.0],[245,0.0],[246,0.0],[247,0.0],[248,0.0],[249,0.0],[250,0.0],[251,0.0],[252,0.0],[253,0.0],[254,0.0],[255,0.0],[256,0.0],[257,0.0],[258,0.0],[259,0.0],[260,0.0],[261,0.0],[262,0.0],[263,0.0],[264,0.0],[265,0.0],[266,0.0],[267,0.0],[268,0.0],[269,0.0],[270,0.0],[271,0.0],[272,0.0],[273,0.0],[274,0.0],[275,0.0]]}; // [step, share of groups with a tied top score]
+  const D={"judge":[[0,0.3373],[1,0.3155],[2,0.3122],[3,0.2862],[4,0.2992],[5,0.291],[6,0.2971],[7,0.2877],[8,0.302],[9,0.3135],[10,0.3267],[11,0.3213],[12,0.3379],[13,0.3356],[14,0.3366],[15,0.332],[16,0.337],[17,0.3315],[18,0.3347],[19,0.3412],[20,0.3374],[21,0.3403],[22,0.3497],[23,0.3601],[24,0.3577],[25,0.3543],[26,0.3469],[27,0.3424],[28,0.3343],[29,0.3323],[30,0.3281],[31,0.332],[32,0.3292],[33,0.3306],[34,0.3196],[35,0.3157],[36,0.3115],[37,0.3148],[38,0.316],[39,0.3136],[40,0.314],[41,0.3107],[42,0.3096],[43,0.3064],[44,0.3084],[45,0.3128],[46,0.3255],[47,0.3352],[48,0.3433],[49,0.3412],[50,0.3426],[51,0.3387],[52,0.3354],[53,0.3318],[54,0.3482],[55,0.3647],[56,0.3691],[57,0.3715],[58,0.3674],[59,0.3653],[60,0.3664],[61,0.3717],[62,0.3648],[63,0.366],[64,0.3591],[65,0.3707],[66,0.3633],[67,0.3679],[68,0.3708],[69,0.3729],[70,0.3694],[71,0.3772],[72,0.373],[73,0.3852],[74,0.3769],[75,0.3679],[76,0.3613],[77,0.3729],[78,0.3688],[79,0.3697],[80,0.3696],[81,0.3786],[82,0.3702],[83,0.3682],[84,0.3765],[85,0.3702],[86,0.3702],[87,0.3661],[88,0.3693],[89,0.3631],[90,0.3631],[91,0.3616],[92,0.3554],[93,0.3405],[94,0.3488],[95,0.3583],[96,0.3649],[97,0.3524],[98,0.3565],[99,0.3556],[100,0.3598],[101,0.3417],[102,0.3542],[103,0.3542],[104,0.3417],[105,0.3437],[106,0.3479],[107,0.35],[108,0.3312],[109,0.3396],[110,0.3396],[111,0.3431],[112,0.3515],[113,0.3598],[114,0.3556],[115,0.3524],[116,0.3521],[117,0.3509],[118,0.3571],[119,0.3592],[120,0.3634],[121,0.3696],[122,0.3759],[123,0.3801],[124,0.3946],[125,0.3926],[126,0.3905],[127,0.3988],[128,0.4071],[129,0.4092],[130,0.4113],[131,0.4051],[132,0.4092],[133,0.4155],[134,0.4134],[135,0.4071],[136,0.4071],[137,0.4125],[138,0.4125],[139,0.4042],[140,0.3899],[141,0.3961],[142,0.3815],[143,0.3774],[144,0.3774],[145,0.3795],[146,0.3857],[147,0.3857],[148,0.3836],[149,0.3795],[150,0.3774],[151,0.3836],[152,0.3732],[153,0.369],[154,0.3795],[155,0.3815],[156,0.3878],[157,0.3836],[158,0.3836],[159,0.3857],[160,0.4],[161,0.4104],[162,0.4167],[163,0.4208],[164,0.4188],[165,0.4229],[166,0.4167],[167,0.4083],[168,0.4104],[169,0.4062],[170,0.4167],[171,0.4125],[172,0.4271],[173,0.4271],[174,0.4188],[175,0.4188],[176,0.4104],[177,0.4188],[178,0.4125],[179,0.4146],[180,0.4063],[181,0.3896],[182,0.3896],[183,0.3854],[184,0.3875],[185,0.3854],[186,0.3896],[187,0.3958],[188,0.4042],[189,0.4104],[190,0.4021],[191,0.4146],[192,0.4229],[193,0.4208],[194,0.4187],[195,0.4229],[196,0.4271],[197,0.4167],[198,0.425],[199,0.4354],[200,0.4458],[201,0.45],[202,0.4563],[203,0.4646],[204,0.4771],[205,0.4771],[206,0.4792],[207,0.4771],[208,0.4771],[209,0.4854],[210,0.4875],[211,0.475],[212,0.4625],[213,0.4646],[214,0.4771],[215,0.4813],[216,0.4792],[217,0.4854],[218,0.4896],[219,0.4813],[220,0.4771],[221,0.4833],[222,0.4917],[223,0.4833],[224,0.4792],[225,0.4875],[226,0.4854],[227,0.4854],[228,0.4854],[229,0.4729],[230,0.4708],[231,0.4688],[232,0.4646],[233,0.4708],[234,0.4521],[235,0.4521],[236,0.45],[237,0.4542],[238,0.45],[239,0.45],[240,0.4443],[241,0.4402],[242,0.4318],[243,0.4402],[244,0.436],[245,0.4298],[246,0.4298],[247,0.4318],[248,0.4214],[249,0.4256],[250,0.4277],[251,0.436],[252,0.4444],[253,0.4423],[254,0.4548],[255,0.461],[256,0.4589],[257,0.4548],[258,0.461],[259,0.4652],[260,0.475],[261,0.4792],[262,0.4708],[263,0.4708],[264,0.4688],[265,0.4854],[266,0.4833],[267,0.4875],[268,0.4958],[269,0.4917],[270,0.4896],[271,0.4833],[272,0.4833],[273,0.4854],[274,0.475],[275,0.4625],[276,0.4729],[277,0.4771],[278,0.4667],[279,0.4667],[280,0.4562],[281,0.4542],[282,0.4562],[283,0.4542],[284,0.4604],[285,0.4521],[286,0.4542],[287,0.4479],[288,0.4542],[289,0.4563],[290,0.4583],[291,0.4563],[292,0.4521],[293,0.4458],[294,0.45],[295,0.4479],[296,0.4542],[297,0.4458],[298,0.4542],[299,0.4479],[300,0.4521],[301,0.4479],[302,0.4521],[303,0.4354],[304,0.4417],[305,0.4271],[306,0.4271],[307,0.4271],[308,0.425],[309,0.4312],[310,0.4354],[311,0.4354],[312,0.4375],[313,0.4458],[314,0.4479],[315,0.4542],[316,0.4458],[317,0.4583],[318,0.4479],[319,0.4646],[320,0.4687],[321,0.4729],[322,0.4708],[323,0.4896],[324,0.4875],[325,0.4875],[326,0.4958],[327,0.5042],[328,0.5021],[329,0.4979],[330,0.4979],[331,0.5062],[332,0.5083],[333,0.5104],[334,0.5125],[335,0.5083],[336,0.5],[337,0.4979],[338,0.5],[339,0.4938],[340,0.4917],[341,0.4917],[342,0.5104],[343,0.5146],[344,0.5],[345,0.5021],[346,0.5021],[347,0.4896],[348,0.4917],[349,0.5063],[350,0.5083],[351,0.5083],[352,0.5042],[353,0.4917],[354,0.4979],[355,0.5021],[356,0.5063],[357,0.5125],[358,0.5208],[359,0.525],[360,0.5333],[361,0.5354],[362,0.5271],[363,0.5208],[364,0.5292],[365,0.5301],[366,0.5217],[367,0.5342],[368,0.528],[369,0.5113],[370,0.5155],[371,0.5176],[372,0.5134],[373,0.5176],[374,0.5176],[375,0.5217],[376,0.5217],[377,0.5134],[378,0.5134],[379,0.5071],[380,0.5071],[381,0.503],[382,0.503],[383,0.5051],[384,0.5051],[385,0.5021],[386,0.5021],[387,0.4979],[388,0.5],[389,0.5104],[390,0.4979],[391,0.5042],[392,0.5167],[393,0.5208],[394,0.5125],[395,0.5146],[396,0.5125],[397,0.5188],[398,0.5208],[399,0.5271],[400,0.5292],[401,0.5292],[402,0.5146],[403,0.5208],[404,0.525],[405,0.5396],[406,0.5417],[407,0.5417],[408,0.55],[409,0.5458],[410,0.5583],[411,0.5479],[412,0.5396],[413,0.5375],[414,0.5458],[415,0.5354],[416,0.5458],[417,0.5417],[418,0.5396],[419,0.5354],[420,0.5292],[421,0.5312],[422,0.5333],[423,0.5333],[424,0.5312],[425,0.5312],[426,0.5292],[427,0.5208],[428,0.5083],[429,0.5167],[430,0.5125],[431,0.5104],[432,0.5125],[433,0.5167],[434,0.5125],[435,0.5146],[436,0.5104],[437,0.5051],[438,0.5071],[439,0.5092],[440,0.5134],[441,0.5155],[442,0.5259],[443,0.5113],[444,0.5092],[445,0.4926],[446,0.4988],[447,0.5092],[448,0.5071],[449,0.4988],[450,0.503],[451,0.5155],[452,0.5238],[453,0.5238],[454,0.528],[455,0.5342],[456,0.5259],[457,0.525],[458,0.5229],[459,0.5229],[460,0.5187],[461,0.5104],[462,0.5062],[463,0.5125],[464,0.5125],[465,0.5208],[466,0.5229],[467,0.5125],[468,0.5167],[469,0.5167],[470,0.5083],[471,0.4937],[472,0.4833],[473,0.475],[474,0.4729],[475,0.4667],[476,0.4708],[477,0.4708],[478,0.475],[479,0.4688],[480,0.4729],[481,0.4854],[482,0.4833],[483,0.4813],[484,0.4708],[485,0.4729],[486,0.4729],[487,0.4833],[488,0.4771],[489,0.4833],[490,0.4833],[491,0.4917],[492,0.5021],[493,0.5104],[494,0.5229],[495,0.5208],[496,0.5229],[497,0.5167],[498,0.5104],[499,0.5146],[500,0.5104],[501,0.5021],[502,0.5042],[503,0.5167],[504,0.5188],[505,0.5146],[506,0.5167],[507,0.5167],[508,0.5312],[509,0.5229],[510,0.525],[511,0.5229],[512,0.5042],[513,0.4938],[514,0.4771],[515,0.4854],[516,0.4854],[517,0.5104],[518,0.5083],[519,0.5],[520,0.5021],[521,0.5104],[522,0.5042],[523,0.5083],[524,0.5187],[525,0.5146],[526,0.5083],[527,0.5104],[528,0.5062],[529,0.5104],[530,0.5042],[531,0.5042],[532,0.5167],[533,0.5292],[534,0.5417],[535,0.5375],[536,0.5375],[537,0.525],[538,0.5229],[539,0.5333],[540,0.5333],[541,0.525],[542,0.5208],[543,0.5021],[544,0.4917],[545,0.4979],[546,0.4979],[547,0.4917],[548,0.4813],[549,0.4813],[550,0.4917],[551,0.4833],[552,0.4833],[553,0.4708],[554,0.4583],[555,0.45],[556,0.4417],[557,0.4396],[558,0.4417],[559,0.4313],[560,0.4375],[561,0.4354],[562,0.4479],[563,0.4583],[564,0.4646],[565,0.4583],[566,0.4583],[567,0.4583],[568,0.4771],[569,0.475],[570,0.4833],[571,0.4979],[572,0.5021],[573,0.5063],[574,0.5167],[575,0.5313],[576,0.5417],[577,0.5396],[578,0.5375],[579,0.5521],[580,0.5417],[581,0.5417],[582,0.5437],[583,0.5417],[584,0.5354],[585,0.5375],[586,0.5417],[587,0.5458],[588,0.5417],[589,0.5479],[590,0.5437],[591,0.5437],[592,0.5396],[593,0.55],[594,0.5417],[595,0.5396],[596,0.5417],[597,0.5417],[598,0.5437],[599,0.5354],[600,0.5458],[601,0.5583],[602,0.5625],[603,0.5583],[604,0.5625],[605,0.5563],[606,0.5646],[607,0.5625],[608,0.5583],[609,0.55],[610,0.5479],[611,0.5438],[612,0.5417],[613,0.5292],[614,0.5438],[615,0.5479],[616,0.5458],[617,0.5438],[618,0.5458],[619,0.5521],[620,0.5521],[621,0.55],[622,0.5458],[623,0.5583],[624,0.5708],[625,0.5958],[626,0.5792],[627,0.5771],[628,0.5708],[629,0.575],[630,0.5771],[631,0.5792],[632,0.5875],[633,0.5938],[634,0.5792],[635,0.5688],[636,0.5708],[637,0.5729],[638,0.5687],[639,0.575],[640,0.5646],[641,0.5583],[642,0.5562],[643,0.55],[644,0.5396],[645,0.5292],[646,0.5417],[647,0.5563],[648,0.5667],[649,0.5646],[650,0.5625],[651,0.5583],[652,0.5542],[653,0.5521],[654,0.5542],[655,0.5562],[656,0.5583],[657,0.5646],[658,0.5667],[659,0.5562],[660,0.5604],[661,0.5625],[662,0.5646],[663,0.5625],[664,0.5688],[665,0.5729],[666,0.5646],[667,0.5458],[668,0.5458],[669,0.5396],[670,0.5354],[671,0.5438],[672,0.5417],[673,0.5438],[674,0.5438],[675,0.5417],[676,0.5417],[677,0.5333],[678,0.5354],[679,0.5375],[680,0.5375],[681,0.5458],[682,0.5458],[683,0.5542],[684,0.5479],[685,0.5375],[686,0.5458],[687,0.5563],[688,0.55],[689,0.5583],[690,0.5604],[691,0.5604],[692,0.5646],[693,0.5667],[694,0.575],[695,0.5812],[696,0.5687],[697,0.5687],[698,0.5708],[699,0.5646],[700,0.5583],[701,0.5583],[702,0.5562],[703,0.5521],[704,0.5562],[705,0.5708],[706,0.5646],[707,0.5521],[708,0.5521],[709,0.5542],[710,0.5521],[711,0.5562],[712,0.5479],[713,0.5542],[714,0.5542],[715,0.55],[716,0.5646],[717,0.5625],[718,0.5646],[719,0.5792],[720,0.5896],[721,0.5792],[722,0.5875],[723,0.5958],[724,0.6021],[725,0.5896],[726,0.5958],[727,0.6146],[728,0.6188],[729,0.6208],[730,0.625],[731,0.6125],[732,0.6271],[733,0.6208],[734,0.6146],[735,0.6167],[736,0.6083],[737,0.6187],[738,0.6208],[739,0.6125],[740,0.6104],[741,0.6167],[742,0.6125],[743,0.6021],[744,0.5875],[745,0.5938],[746,0.5875],[747,0.5771],[748,0.5854],[749,0.5792],[750,0.5792],[751,0.5896],[752,0.5771],[753,0.5708],[754,0.5771],[755,0.5854],[756,0.5958],[757,0.5958],[758,0.5917],[759,0.5854],[760,0.5917],[761,0.5917],[762,0.5896],[763,0.5896],[764,0.5958],[765,0.5896],[766,0.5937],[767,0.5937],[768,0.5875],[769,0.5917],[770,0.5854],[771,0.5833],[772,0.5854],[773,0.5917],[774,0.5875],[775,0.5875],[776,0.5771],[777,0.5792],[778,0.5812],[779,0.5854],[780,0.5729],[781,0.575],[782,0.5833],[783,0.5875],[784,0.5896],[785,0.5917],[786,0.6],[787,0.5979],[788,0.5979],[789,0.5875],[790,0.5979],[791,0.5958],[792,0.6],[793,0.6083],[794,0.6042],[795,0.6042],[796,0.6104],[797,0.6083],[798,0.6062],[799,0.6083],[800,0.6104]],"verifier":[[0,0.0],[1,0.0],[2,0.0],[3,0.0],[4,0.0],[5,0.0],[6,0.0],[7,0.0],[8,0.0],[9,0.0],[10,0.0],[11,0.0],[12,0.0],[13,0.0],[14,0.0],[15,0.0],[16,0.0],[17,0.0],[18,0.0],[19,0.0],[20,0.0],[21,0.0],[22,0.0],[23,0.0],[24,0.0],[25,0.0],[26,0.0],[27,0.0],[28,0.0],[29,0.0],[30,0.0],[31,0.0],[32,0.0],[33,0.0],[34,0.0],[35,0.0],[36,0.0],[37,0.0],[38,0.0],[39,0.0],[40,0.0],[41,0.0],[42,0.0],[43,0.0],[44,0.0],[45,0.0],[46,0.0],[47,0.0],[48,0.0],[49,0.0],[50,0.0],[51,0.0],[52,0.0],[53,0.0],[54,0.0],[55,0.0],[56,0.0],[57,0.0],[58,0.0],[59,0.0],[60,0.0],[61,0.0],[62,0.0],[63,0.0],[64,0.0],[65,0.0],[66,0.0],[67,0.0],[68,0.0],[69,0.0],[70,0.0],[71,0.0],[72,0.0],[73,0.0],[74,0.0],[75,0.0],[76,0.0],[77,0.0],[78,0.0],[79,0.0],[80,0.0],[81,0.0],[82,0.0],[83,0.0],[84,0.0],[85,0.0],[86,0.0],[87,0.0],[88,0.0],[89,0.0],[90,0.0],[91,0.0],[92,0.0],[93,0.0],[94,0.0],[95,0.0],[96,0.0],[97,0.0],[98,0.0],[99,0.0],[100,0.0],[101,0.0],[102,0.0],[103,0.0],[104,0.0],[105,0.0],[106,0.0],[107,0.0],[108,0.0],[109,0.0],[110,0.0],[111,0.0],[112,0.0],[113,0.0],[114,0.0],[115,0.0],[116,0.0],[117,0.0],[118,0.0],[119,0.0],[120,0.0],[121,0.0],[122,0.0],[123,0.0],[124,0.0],[125,0.0],[126,0.0],[127,0.0],[128,0.0],[129,0.0],[130,0.0],[131,0.0],[132,0.0],[133,0.0],[134,0.0],[135,0.0],[136,0.0],[137,0.0],[138,0.0],[139,0.0],[140,0.0],[141,0.0],[142,0.0],[143,0.0],[144,0.0],[145,0.0],[146,0.0],[147,0.0],[148,0.0],[149,0.0],[150,0.0],[151,0.0],[152,0.0],[153,0.0],[154,0.0],[155,0.0],[156,0.0],[157,0.0],[158,0.0],[159,0.0],[160,0.0],[161,0.0],[162,0.0],[163,0.0],[164,0.0],[165,0.0],[166,0.0],[167,0.0],[168,0.0],[169,0.0],[170,0.0],[171,0.0],[172,0.0],[173,0.0],[174,0.0],[175,0.0],[176,0.0],[177,0.0],[178,0.0],[179,0.0],[180,0.0],[181,0.0],[182,0.0],[183,0.0],[184,0.0],[185,0.0],[186,0.0],[187,0.0],[188,0.0],[189,0.0],[190,0.0],[191,0.0],[192,0.0],[193,0.0],[194,0.0],[195,0.0],[196,0.0],[197,0.0],[198,0.0],[199,0.0],[200,0.0],[201,0.0],[202,0.0],[203,0.0],[204,0.0],[205,0.0],[206,0.0],[207,0.0],[208,0.0],[209,0.0],[210,0.0],[211,0.0],[212,0.0],[213,0.0],[214,0.0],[215,0.0],[216,0.0],[217,0.0],[218,0.0],[219,0.0],[220,0.0],[221,0.0],[222,0.0],[223,0.0],[224,0.0],[225,0.0],[226,0.0],[227,0.0],[228,0.0],[229,0.0],[230,0.0],[231,0.0],[232,0.0],[233,0.0],[234,0.0],[235,0.0],[236,0.0],[237,0.0],[238,0.0],[239,0.0],[240,0.0],[241,0.0],[242,0.0],[243,0.0],[244,0.0],[245,0.0],[246,0.0],[247,0.0],[248,0.0],[249,0.0],[250,0.0],[251,0.0],[252,0.0],[253,0.0],[254,0.0],[255,0.0],[256,0.0],[257,0.0],[258,0.0],[259,0.0],[260,0.0],[261,0.0],[262,0.0],[263,0.0],[264,0.0],[265,0.0],[266,0.0],[267,0.0],[268,0.0],[269,0.0],[270,0.0],[271,0.0],[272,0.0],[273,0.0],[274,0.0],[275,0.0],[276,0.0],[277,0.0],[278,0.0],[279,0.0],[280,0.0],[281,0.0],[282,0.0],[283,0.0],[284,0.0],[285,0.0],[286,0.0],[287,0.0],[288,0.0],[289,0.0],[290,0.0],[291,0.0],[292,0.0],[293,0.0],[294,0.0],[295,0.0],[296,0.0],[297,0.0],[298,0.0],[299,0.0],[300,0.0],[301,0.0],[302,0.0],[303,0.0],[304,0.0],[305,0.0],[306,0.0],[307,0.0],[308,0.0],[309,0.0],[310,0.0],[311,0.0],[312,0.0],[313,0.0],[314,0.0],[315,0.0],[316,0.0],[317,0.0],[318,0.0],[319,0.0],[320,0.0],[321,0.0],[322,0.0],[323,0.0],[324,0.0],[325,0.0],[326,0.0],[327,0.0],[328,0.0],[329,0.0],[330,0.0],[331,0.0],[332,0.0],[333,0.0],[334,0.0],[335,0.0],[336,0.0],[337,0.0],[338,0.0],[339,0.0],[340,0.0],[341,0.0],[342,0.0],[343,0.0],[344,0.0],[345,0.0],[346,0.0],[347,0.0],[348,0.0],[349,0.0],[350,0.0],[351,0.0],[352,0.0],[353,0.0],[354,0.0],[355,0.0],[356,0.0],[357,0.0],[358,0.0],[359,0.0],[360,0.0],[361,0.0],[362,0.0],[363,0.0],[364,0.0],[365,0.0],[366,0.0],[367,0.0],[368,0.0],[369,0.0],[370,0.0],[371,0.0],[372,0.0],[373,0.0],[374,0.0],[375,0.0],[376,0.0],[377,0.0],[378,0.0],[379,0.0],[380,0.0],[381,0.0],[382,0.0],[383,0.0],[384,0.0],[385,0.0],[386,0.0],[387,0.0],[388,0.0],[389,0.0],[390,0.0],[391,0.0],[392,0.0],[393,0.0],[394,0.0],[395,0.0],[396,0.0],[397,0.0],[398,0.0],[399,0.0],[400,0.0],[401,0.0],[402,0.0],[403,0.0],[404,0.0],[405,0.0],[406,0.0],[407,0.0],[408,0.0],[409,0.0],[410,0.0],[411,0.0],[412,0.0],[413,0.0],[414,0.0],[415,0.0],[416,0.0],[417,0.0],[418,0.0],[419,0.0],[420,0.0],[421,0.0],[422,0.0],[423,0.0],[424,0.0],[425,0.0],[426,0.0],[427,0.0],[428,0.0],[429,0.0],[430,0.0],[431,0.0],[432,0.0],[433,0.0],[434,0.0],[435,0.0],[436,0.0],[437,0.0],[438,0.0],[439,0.0],[440,0.0],[441,0.0],[442,0.0],[443,0.0],[444,0.0],[445,0.0],[446,0.0],[447,0.0],[448,0.0],[449,0.0],[450,0.0],[451,0.0],[452,0.0],[453,0.0],[454,0.0],[455,0.0],[456,0.0],[457,0.0],[458,0.0],[459,0.0],[460,0.0],[461,0.0],[462,0.0],[463,0.0],[464,0.0],[465,0.0],[466,0.0],[467,0.0],[468,0.0],[469,0.0],[470,0.0],[471,0.0],[472,0.0],[473,0.0],[474,0.0],[475,0.0],[476,0.0],[477,0.0],[478,0.0],[479,0.0],[480,0.0],[481,0.0],[482,0.0],[483,0.0],[484,0.0],[485,0.0],[486,0.0],[487,0.0],[488,0.0],[489,0.0],[490,0.0],[491,0.0],[492,0.0],[493,0.0],[494,0.0],[495,0.0],[496,0.0],[497,0.0],[498,0.0],[499,0.0],[500,0.0],[501,0.0],[502,0.0],[503,0.0],[504,0.0],[505,0.0],[506,0.0],[507,0.0],[508,0.0],[509,0.0],[510,0.0],[511,0.0],[512,0.0],[513,0.0],[514,0.0],[515,0.0],[516,0.0],[517,0.0],[518,0.0],[519,0.0],[520,0.0],[521,0.0],[522,0.0],[523,0.0],[524,0.0],[525,0.0],[526,0.0],[527,0.0],[528,0.0],[529,0.0],[530,0.0],[531,0.0],[532,0.0],[533,0.0],[534,0.0],[535,0.0],[536,0.0],[537,0.0],[538,0.0],[539,0.0],[540,0.0],[541,0.0],[542,0.0],[543,0.0],[544,0.0],[545,0.0],[546,0.0],[547,0.0],[548,0.0],[549,0.0],[550,0.0],[551,0.0],[552,0.0],[553,0.0],[554,0.0],[555,0.0],[556,0.0],[557,0.0],[558,0.0],[559,0.0],[560,0.0],[561,0.0],[562,0.0],[563,0.0],[564,0.0],[565,0.0],[566,0.0],[567,0.0],[568,0.0],[569,0.0],[570,0.0],[571,0.0],[572,0.0],[573,0.0],[574,0.0],[575,0.0],[576,0.0],[577,0.0],[578,0.0],[579,0.0],[580,0.0],[581,0.0],[582,0.0],[583,0.0],[584,0.0],[585,0.0],[586,0.0],[587,0.0],[588,0.0],[589,0.0],[590,0.0],[591,0.0],[592,0.0],[593,0.0],[594,0.0],[595,0.0],[596,0.0],[597,0.0],[598,0.0],[599,0.0],[600,0.0],[601,0.0],[602,0.0],[603,0.0],[604,0.0],[605,0.0],[606,0.0],[607,0.0],[608,0.0],[609,0.0],[610,0.0],[611,0.0],[612,0.0],[613,0.0],[614,0.0],[615,0.0],[616,0.0],[617,0.0],[618,0.0],[619,0.0],[620,0.0],[621,0.0],[622,0.0],[623,0.0],[624,0.0],[625,0.0],[626,0.0],[627,0.0],[628,0.0],[629,0.0],[630,0.0],[631,0.0],[632,0.0],[633,0.0],[634,0.0],[635,0.0],[636,0.0],[637,0.0],[638,0.0],[639,0.0],[640,0.0],[641,0.0],[642,0.0],[643,0.0],[644,0.0],[645,0.0],[646,0.0],[647,0.0],[648,0.0],[649,0.0],[650,0.0],[651,0.0],[652,0.0],[653,0.0],[654,0.0],[655,0.0],[656,0.0],[657,0.0],[658,0.0],[659,0.0],[660,0.0],[661,0.0],[662,0.0],[663,0.0],[664,0.0],[665,0.0],[666,0.0],[667,0.0],[668,0.0],[669,0.0],[670,0.0],[671,0.0],[672,0.0],[673,0.0],[674,0.0],[675,0.0],[676,0.0],[677,0.0],[678,0.0],[679,0.0],[680,0.0],[681,0.0],[682,0.0],[683,0.0],[684,0.0],[685,0.0],[686,0.0],[687,0.0],[688,0.0],[689,0.0],[690,0.0],[691,0.0],[692,0.0],[693,0.0],[694,0.0],[695,0.0],[696,0.0],[697,0.0],[698,0.0],[699,0.0],[700,0.0],[701,0.0],[702,0.0],[703,0.0],[704,0.0],[705,0.0],[706,0.0],[707,0.0],[708,0.0],[709,0.0],[710,0.0],[711,0.0],[712,0.0],[713,0.0],[714,0.0],[715,0.0],[716,0.0],[717,0.0],[718,0.0],[719,0.0],[720,0.0],[721,0.0],[722,0.0],[723,0.0],[724,0.0],[725,0.0],[726,0.0],[727,0.0],[728,0.0],[729,0.0],[730,0.0],[731,0.0],[732,0.0],[733,0.0],[734,0.0],[735,0.0],[736,0.0],[737,0.0],[738,0.0],[739,0.0],[740,0.0],[741,0.0],[742,0.0],[743,0.0],[744,0.0],[745,0.0],[746,0.0],[747,0.0],[748,0.0],[749,0.0],[750,0.0],[751,0.0],[752,0.0],[753,0.0],[754,0.0],[755,0.0],[756,0.0],[757,0.0],[758,0.0],[759,0.0],[760,0.0],[761,0.0],[762,0.0],[763,0.0],[764,0.0],[765,0.0],[766,0.0],[767,0.0],[768,0.0],[769,0.0],[770,0.0],[771,0.0],[772,0.0],[773,0.0],[774,0.0],[775,0.0],[776,0.0],[777,0.0],[778,0.0],[779,0.0],[780,0.0],[781,0.0],[782,0.0],[783,0.0],[784,0.0],[785,0.0],[786,0.0],[787,0.0],[788,0.0],[789,0.0],[790,0.0],[791,0.0],[792,0.0],[793,0.0],[794,0.0],[795,0.0],[796,0.0],[797,0.0],[798,0.0],[799,0.0],[800,0.0]]}; // [step, share of groups with a tied top score]; judge: mean of 3 seeds, 20-step trailing average; verifier: max over 3 seeds (always 0)
   const ARMS=[['verifier','Verifier','ver'],['judge','Judge','jud']];
-  const W=720,H=320,m={l:34,r:86,t:30,b:40},X1=300,Y1=.5;
+  const W=660,H=290,m={l:34,r:70,t:28,b:36},X1=800,Y1=.7;
   const x=v=>m.l+v/X1*(W-m.l-m.r),y=v=>m.t+(1-v/Y1)*(H-m.t-m.b);
   const path=pts=>pts.map(([a,b],i)=>(i?'L':'M')+x(a).toFixed(1)+' '+y(b).toFixed(1)).join('');
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: share of groups with a tied top score. The judge rises from about 27 percent early in training to about 39 percent by step 286; the verifier stays at zero.">`;
-  [0,.2,.4].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: share of groups with a tied top score. The judge rises from about 33 percent over the first 50 steps to about 61 percent by step 800; the verifier stays at zero.">`;
+  [0,.2,.4,.6].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`);
   s+=`<text class="cap" x="${m.l-8}" y="${m.t-16}">Groups with a tied top score</text>`;
-  [0,100,200,300].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
+  [0,200,400,600,800].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
   s+=`<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${H-m.b}" y2="${H-m.b}"/><text class="cap" x="${W-m.r}" y="${H-4}" text-anchor="end">Training step</text>`;
   ARMS.forEach(([arm,,c])=>s+=`<path class="mean s-${c} draw" d="${path(D[arm])}"/>`);
   ARMS.forEach(([arm,label,c])=>{const last=D[arm][D[arm].length-1];
@@ -802,7 +721,7 @@ el.addEventListener('mouseleave',()=>tip.style.opacity=0)}
 (function(){const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('is-revealed');io.unobserve(e.target)}}),{threshold:.35});
 document.querySelectorAll('.chart').forEach(c=>io.observe(c));})();
 
-function copyCite(b){const t=document.getElementById('cite').innerText.replace(/^Copy\s*/,'');
+function copyCite(b){const t=b.parentElement.innerText.replace(/^Cop(y|ied)\s*/,'');
 navigator.clipboard?.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1500)})}
 document.getElementById('themeBtn').onclick=()=>{const r=document.documentElement;
 const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark'};
