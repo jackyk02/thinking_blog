@@ -7,7 +7,7 @@ window.FIG = {
   groups: {
     grapes: { short: "a bunch of grapes",
       code: "sketches/grape-g15.js",
-      imgs: ["demos/grape-pipe-1.webp?v=leafup", "demos/grape-tie-2.webp", "demos/grape-tie-1.webp", "demos/grape-pipe-4.webp"] }
+      imgs: ["demos/grape-pipe-1.webp?v=stem", "demos/grape-tie-2.webp", "demos/grape-tie-1.webp", "demos/grape-pipe-4.webp"] }
   },
   placeholder: {
     pipeline: { grapes: [0.74,0.62,0.55,0.43] }

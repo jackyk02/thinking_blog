@@ -14,12 +14,12 @@ function setup() {
   brush.vertex(-340, 340);
   brush.endShape(CLOSE);
 
-  // Stem and tendril
+  // Stem: sketched lightly under the washes
   brush.stroke('#3d2b4f');
   brush.strokeWeight(2);
-  brush.line(84, -136, 58, -244);
-  brush.line(58, -244, 17, -217);
-  brush.line(58, -244, 84, -298);
+  brush.line(72, -258, 42, -226);
+  brush.line(42, -226, 14, -184);
+  brush.line(42, -226, -72, -172);
 
   // Main grape clusters (clockwise circles via polygon approximation)
   brush.fill('#4a2c7a', 140);
@@ -56,7 +56,7 @@ function setup() {
   brush.line(-24, -28, 17, -96);
   brush.line(17, -96, -37, -123);
   brush.line(-78, -69, -64, -15);
-  brush.line(58, -244, 84, -298);
+  brush.line(42, -226, 72, -258);
 
   // Leaf
   brush.fill('#4d7a3d', 160);
@@ -68,8 +68,14 @@ function setup() {
   brush.vertex(-64, -151);
   brush.endShape(CLOSE);
 
-  // Stem base
+  // Stem: the vine comes in from the top, a stalk joins the top of the bunch,
+  // and a second stalk branches off to the leaf
   brush.stroke('#3d2b4f');
   brush.strokeWeight(3);
-  brush.line(58, -244, 58, -15);
+  brush.line(72, -258, 42, -226);
+  brush.line(42, -226, 24, -202);
+  brush.line(24, -202, 14, -184);
+  brush.strokeWeight(2);
+  brush.line(42, -226, -14, -204);
+  brush.line(-14, -204, -72, -172);
 }
