@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Training LLMs to Paint with RL and Self-Verification</title>
+<title>Scaling Self-Verification for Creative Tasks</title>
 <meta name="description" content="Scaling verification with LLM-as-a-Verifier makes RL more effective for creative, non-verifiable tasks, using watercolor painting with Inkling-Small as a case study.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -304,6 +304,17 @@ footer{margin-top:9rem;padding-bottom:1.75rem;color:var(--fg4);font-family:var(-
 .footer-copyright{margin-top:3rem;font-size:13px;color:var(--fg5);display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem}
 .theme-btn{background:none;border:1px solid var(--rule);color:var(--fg4);border-radius:4px;font:inherit;font-size:12px;padding:.15rem .5rem;cursor:pointer}
 
+/* ---- Cover: a live 3D scene (scenes/windmill-polder.html) in a fixed view ---- */
+.post-cover.sv-cover{max-width:min(100%,1000px)}
+.sv-scene{aspect-ratio:2000/900;border-radius:6px;overflow:hidden;background:#dfe8e6}
+.sv-scene iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}
+@media (hover:hover) and (pointer:fine){.sv-scene iframe{pointer-events:auto}}
+.sv-scene-dark{aspect-ratio:2000/840;background:#05070c}
+@media (max-width:640px){.sv-scene{aspect-ratio:16/9}}
+/* the painting cover, now a figure in the Appendix */
+.content .post-cover.tk-cover{max-width:none;padding:0;margin:1.4rem 0 2.6rem}
+.content .post-cover.tk-cover .post-cover-caption{font-size:var(--caption);font-family:var(--font-sans);text-align:center;margin:1rem auto 0;max-width:620px}
+@media (min-width:1180px){.content .post-cover.tk-cover{margin-left:-120px;margin-right:-120px}}
 /* ---- Painting cover (Thinking Machines figure style) ---- */
 .post-cover.tk-cover{max-width:min(100%,940px);--pill:#e8e8e6;--pill-fg:#282828;--bg-code:#f3f3f2}
 .post-cover-caption{font-family:var(--font-serif);font-size:15px;line-height:1.4;color:var(--fg4);text-align:center;margin:1.1rem auto 0;max-width:620px}
@@ -388,26 +399,26 @@ figure.right-wide{margin-left:0}
 
 <main>
   <div class="post-heading">
-    <h1 class="post-title">Training LLMs to Paint with RL and Self-Verification</h1>
+    <h1 class="post-title">Scaling Self-Verification for Creative Tasks</h1>
     <div class="publish-metadata">
-      <span class="author">Jacky Kwok, Surya Narreddi, Neal Wu, Cameron Franz, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
+      <span class="author">Jacky Kwok, Surya Narreddi, Cameron Franz, Neal Wu, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
     </div>
   </div>
 
-  <div class="post-cover tk-cover">
-    <div class="tk-toolbar">
-      <div class="tk-pills"><span class="tk-pill" id="tk-step">call 0 / 0</span><span class="tk-pill tk-pill-soft" id="tk-layers">ready</span></div>
-      <div class="tk-controls">
-      <div class="tk-progress"><span id="tk-bar"></span></div>
-      <button class="tk-btn" id="tk-pause" aria-label="Pause animation"><svg width="14" height="14" viewBox="0 0 14 14"><path id="tk-pause-icon" d="M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z" fill="currentColor"/></svg></button>
-    </div>
-    </div>
-    <div class="tk-figure" id="tk-paint" role="img" aria-label="Animation: the p5.brush sketch flower.js runs line by line on the right while the real sketch paints a blue watercolor flower with an amber center, green leaves and a thin stem on the left, one brush call at a time.">
-      <div class="tk-panel"><div id="tk-canvas-host"></div></div>
-      <div class="tk-panel"><div class="tk-pre-box"><pre class="tk-pre" id="tk-pre" aria-hidden="true"></pre></div></div>
-    </div>
-    <p class="post-cover-caption">Inkling-Small Creates Watercolor Paintings with JavaScript</p>
+  <div class="post-cover sv-cover" id="sv-cover">
+    <div class="sv-scene sv-scene-dark"><iframe src="scenes/galaxy-merger.html?v=4" title="Animated 3D scene: the end of a galactic merger. Two clouds of tens of thousands of stars drift against a dark sky, each trailing a thin bright streak." tabindex="-1" scrolling="no"></iframe></div>
+    <p class="post-cover-caption">The end of a galactic merger, with 80,000 stars simulated live in the browser.</p>
   </div>
+  <script>
+  /* preview switch: the windmill cover instead of the galaxy, on local port 8011 or with ?teaser=windmill */
+  (function(){ if(location.port!=='8011' && new URLSearchParams(location.search).get('teaser')!=='windmill') return;
+    const c=document.getElementById('sv-cover'), f=c.querySelector('iframe');
+    c.querySelector('.sv-scene').classList.remove('sv-scene-dark');
+    f.src='scenes/windmill-polder.html?v=11';
+    f.title='Animated 3D scene: four Dutch windmills turning in a strong wind beside a canal, with rows of tulips swaying in the foreground.';
+    c.querySelector('.post-cover-caption').textContent='A windmill polder in a 9 m/s wind, rendered live as a 3D scene.';
+  })();
+  </script>
 
   <div class="post-content-shell">
     <nav class="left-toc" id="toc" aria-label="Table of contents"><ul></ul></nav>
@@ -415,13 +426,8 @@ figure.right-wide{margin-left:0}
     <article class="content" id="article">
       <span id="introduction"></span>
       <p>Reinforcement learning (RL) has dramatically improved the capabilities of large language models (LLMs), but it has also led to a phenomenon known as “jagged intelligence”: frontier models can solve complex math and coding problems while still struggling in domains such as art and literature.</p>
-      <p>A key reason for this disparity lies in the reward signals. In verifiable domains, mathematical solutions can be checked using theorem provers, and code can be evaluated in sandboxed environments. In contrast, creative tasks involve subjective qualities such as aesthetics, which lack clear ground-truth answers and are inherently difficult to evaluate. While standard LLM-as-a-Judge approaches can be used here, they often suffer from coarse-grained scoring.</p>
-      <p>In this blog, we explore how LLM-as-a-Verifier, a verification scaling framework, can improve the effectiveness of RL in non-verifiable domains, using painting as a case study. We validate this in the strictest setting, self-verification, using Inkling-Small as both generator and verifier. Specifically, we demonstrate that compared to standard LLM-as-a-Judge:</p>
-      <ul class="claims">
-        <li><b>Verifiers provide more effective reward signals for RL.</b> By scaling verification along 3 dimensions—score granularity, repeated evaluation, and criteria decomposition—LLM-as-a-Verifier significantly improves the sample efficiency of RL for painting, reaching the same held-out scores in up to 1.69× fewer training steps.</li>
-        <li><b>Verifiers better align with human preferences.</b> LLM-as-a-Verifier produces evaluation scores that correlate more strongly with human judgments of the aesthetic quality of paintings.</li>
-        <li><b>Verifier provides better signals for test-time scaling.</b> By evaluating and selecting among multiple generated paintings, LLM-as-a-Verifier provides effective signals for test-time selection, significantly improving the quality of the final outputs.</li>
-      </ul>
+      <p>A key reason for this disparity lies in the reward signals. In verifiable domains, mathematical solutions can be checked using theorem provers, and code can be evaluated in sandboxed environments. In contrast, creative tasks involve subjective qualities such as aesthetics, which lack clear ground-truth answers and are inherently difficult to evaluate. While standard LLM-as-a-Judge approaches can be used here, they often suffer from coarse-grained scoring, which provides limited signals for learning and selection.</p>
+      <p>In this blog, we explore how LLM-as-a-Verifier, a verification scaling framework, can improve the effectiveness of test-time scaling and RL in non-verifiable domains, using 3D modeling and painting as case studies. We validate this in the strictest setting, self-verification, using Inkling as both generator and verifier.</p>
 
       <h2 id="paintings-over-rl-training">Painting Quality over RL training</h2>
       <figure class="demo-grid" id="fig-painting-rl-demos">
@@ -516,11 +522,11 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 
       <h2 id="citation">Citation</h2>
       <p>Please cite this work as:</p>
-      <p>Kwok, Jacky, Surya Narreddi, Neal Wu, Cameron Franz and Simon Guo, “Training LLMs to Paint with RL and Self-Verification”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
+      <p>Kwok, Jacky, Surya Narreddi, Cameron Franz, Neal Wu and Simon Guo, “Scaling Self-Verification for Creative Tasks”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
       <p>BibTeX:</p>
       <div class="cite" id="cite"><button class="copy" onclick="copyCite(this)">Copy</button>@article{kwok2026creative,
-  author = {Kwok, Jacky and Narreddi, Surya and Wu, Neal and Franz, Cameron and Guo, Simon},
-  title = {Training LLMs to Paint with RL and Self-Verification},
+  author = {Kwok, Jacky and Narreddi, Surya and Franz, Cameron and Wu, Neal and Guo, Simon},
+  title = {Scaling Self-Verification for Creative Tasks},
   journal = {Thinking Machines Lab: Connectionism},
   year = {2026},
   month = {Nov}
@@ -537,6 +543,20 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 }</div>
 
       <h2 id="appendix">Appendix</h2>
+      <div class="post-cover tk-cover">
+    <div class="tk-toolbar">
+      <div class="tk-pills"><span class="tk-pill" id="tk-step">call 0 / 0</span><span class="tk-pill tk-pill-soft" id="tk-layers">ready</span></div>
+      <div class="tk-controls">
+      <div class="tk-progress"><span id="tk-bar"></span></div>
+      <button class="tk-btn" id="tk-pause" aria-label="Pause animation"><svg width="14" height="14" viewBox="0 0 14 14"><path id="tk-pause-icon" d="M3.5 2h2.5v10H3.5zM8 2h2.5v10H8z" fill="currentColor"/></svg></button>
+    </div>
+    </div>
+    <div class="tk-figure" id="tk-paint" role="img" aria-label="Animation: the p5.brush sketch flower.js runs line by line on the right while the real sketch paints a blue watercolor flower with an amber center, green leaves and a thin stem on the left, one brush call at a time.">
+      <div class="tk-panel"><div id="tk-canvas-host"></div></div>
+      <div class="tk-panel"><div class="tk-pre-box"><pre class="tk-pre" id="tk-pre" aria-hidden="true"></pre></div></div>
+    </div>
+    <p class="post-cover-caption">Inkling-Small Creates Watercolor Paintings with JavaScript</p>
+  </div>
       <figure class="demo-grid" id="fig-more-paintings">
           <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>0</span><span>200</span><span>400</span><span>800</span></div></div>
           <div class="demo-row">
@@ -606,14 +626,14 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 
 <!-- the painter shared by the cover (its stroke worker is js/strokes.js) -->
 <script src="js/painter.js?v=4"></script>
-<script src="js/hero.js?v=4"></script>
+<script src="js/hero.js?v=5"></script>
 <script src="js/figures/core.js?v=4"></script>
 <script src="js/figures/data.js?v=4"></script>
 <script src="js/figures/pipeline.js?v=4"></script>
 
 <script>
 /* ---------- TOC ---------- */
-(function(){const wide=document.querySelectorAll('.demo-grid,figure.fx-wide,figure.right-wide');if(!wide.length||!('IntersectionObserver' in window))return;const on=new Set();const io=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?on.add(e.target):on.delete(e.target));document.body.classList.toggle('toc-hide',on.size>0)},{rootMargin:'-15% 0px -15% 0px'});wide.forEach(f=>io.observe(f))})();
+(function(){const wide=document.querySelectorAll('.demo-grid,figure.fx-wide,figure.right-wide,.content .tk-cover');if(!wide.length||!('IntersectionObserver' in window))return;const on=new Set();const io=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?on.add(e.target):on.delete(e.target));document.body.classList.toggle('toc-hide',on.size>0)},{rootMargin:'-15% 0px -15% 0px'});wide.forEach(f=>io.observe(f))})();
 (function(){const ul=document.querySelector('#toc ul');let cur=null;
 const items=[{id:'introduction',text:'Introduction',tag:'H2'},...[...document.querySelectorAll('#article h2, #article h3')].filter(h=>!h.closest('[hidden]')).map(h=>({id:h.id,text:h.textContent,tag:h.tagName}))];
 items.forEach(h=>{const li=document.createElement('li');li.innerHTML=`<a href="#${h.id}">${h.text}</a>`;
