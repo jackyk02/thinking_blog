@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Antiquarian Hourglass — A Study in Sand and Time</title>
+<style>
+  :root{
+    --gold:#c9a24b; --parch:#e8dcc0; --ink:#0d0b09;
+  }
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0d0b09;
+    font-family: Georgia, 'Times New Roman', serif; }
+  #stage{position:fixed;inset:0;display:block;cursor:grab;}
+  #stage.grabbing{cursor:grabbing;}
+  .overlay{position:fixed;pointer-events:none;z-index:5;color:var(--parch);}
+  #title{top:26px;left:32px;text-shadow:0 2px 14px rgba(0,0,0,.9);}
+  #title h1{font-size:21px;letter-spacing:.16em;font-weight:normal;margin:0;
+    text-transform:uppercase;color:#e6c876;}
+  #title p{font-size:12px;letter-spacing:.08em;margin:6px 0 0 2px;opacity:.75;font-style:italic;}
+  #hint{bottom:22px;left:32px;font-size:11px;letter-spacing:.12em;opacity:.72;
+    text-transform:uppercase;text-shadow:0 1px 8px #000;}
+  #hint b{color:#e6c876;font-weight:normal;border:1px solid rgba(230,200,118,.4);
+    border-radius:3px;padding:0 5px;margin:0 2px;}
+  #recBtn{position:fixed;bottom:22px;right:28px;z-index:6;pointer-events:auto;
+    background:rgba(24,18,12,.72);color:#e6c876;border:1px solid rgba(230,200,118,.55);
+    font-family:Georgia,serif;font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    padding:12px 22px;border-radius:2px;cursor:pointer;backdrop-filter:blur(6px);
+    transition:all .25s ease;box-shadow:0 0 0 rgba(230,200,118,0);}
+  #recBtn:hover{background:rgba(54,40,22,.85);box-shadow:0 0 28px rgba(230,200,118,.35);border-color:#e6c876;}
+  #recBtn:disabled{opacity:.55;cursor:wait;}
+  #recDot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#c0392b;
+    margin-right:9px;vertical-align:1px;}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:4;
+    background:radial-gradient(ellipse at 50% 42%, transparent 52%, rgba(5,4,3,.55) 100%);}
+</style>
+<style>/* blog-clean: only the 3D canvas is shown in the blog; titles, panels and buttons are hidden */
+body *:not(canvas):not(:has(canvas)):not(script):not(style){visibility:hidden!important}</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="vignette"></div>
+<div class="overlay" id="title">
+  <h1>The Antiquarian Hourglass</h1>
+  <p>blown glass &middot; dark oak &middot; sixty grains of gold per breath of time</p>
+</div>
+<div class="overlay" id="hint"><b>Click</b> flip &nbsp;&middot;&nbsp; <b>Drag</b> tilt &nbsp;&middot;&nbsp; <b>R</b> reset</div>
+<button id="recBtn"><span id="recDot"></span>Record video</button>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================================================
+   0. Seeded RNG (determinism for showcase / seek)
+   ============================================================ */
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const smoothstep = t => t*t*(3-2*t);
+const easeInOutCubic = t => t<0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+
+/* ============================================================
+   1. Hourglass glass profile — single source of truth for
+      lathe geometry AND collision boundary
+   ============================================================ */
+// [radius, y] bottom → top  (y in local glass units, neck at 0)
+const PROF_CTRL = [
+  [0.02,-1.400],[0.30,-1.372],[0.62,-1.300],[0.88,-1.200],[1.03,-1.020],
+  [1.06,-0.800],[0.98,-0.600],[0.78,-0.420],[0.50,-0.270],[0.280,-0.160],
+  [0.165,-0.085],[0.135, 0.000],[0.165, 0.085],[0.280, 0.160],[0.500, 0.270],
+  [0.780, 0.420],[0.980, 0.600],[1.060, 0.800],[1.030, 1.020],[0.880, 1.200],
+  [0.620, 1.300],[0.300, 1.372],[0.020, 1.400]
+];
+const spline = new THREE.SplineCurve(PROF_CTRL.map(p => new THREE.Vector2(p[0], p[1])));
+const PROFILE_PTS = spline.getPoints(260).map(v => new THREE.Vector2(Math.max(0, v.x), v.y));
+const PROF_Y = new Float32Array(PROFILE_PTS.length);
+const PROF_R = new Float32Array(PROFILE_PTS.length);
+PROFILE_PTS.forEach((p,i)=>{ PROF_Y[i]=p.y; PROF_R[i]=Math.max(0.0,p.x); });
+
+function innerR(y){
+  y = clamp(y, PROF_Y[0], PROF_Y[PROF_Y.length-1]);
+  let lo=0, hi=PROF_Y.length-1;
+  while(hi-lo>1){ const mid=(lo+hi)>>1; if(PROF_Y[mid]<y) lo=mid; else hi=mid; }
+  const span = PROF_Y[hi]-PROF_Y[lo] || 1e-6;
+  const t = (y-PROF_Y[lo])/span;
+  return PROF_R[lo]*(1-t) + PROF_R[hi]*t;
+}
+
+/* ============================================================
+   2. Renderer / Scene / Camera / Controls / Composer
+   ============================================================ */
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0b09);
+scene.fog = new THREE.Fog(0x0d0b09, 9, 17);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 60);
+camera.position.set(3.6, 2.45, 5.05);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.55, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 2.2;
+controls.maxDistance = 10;
+controls.maxPolarAngle = 1.52;
+controls.update();
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.6, 0.78);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+/* Procedural environment (for glass refraction / brass reflections) */
+{
+  const envScene = new THREE.Scene();
+  const gradC = document.createElement('canvas'); gradC.width=16; gradC.height=256;
+  const g = gradC.getContext('2d');
+  const grd = g.createLinearGradient(0,0,0,256);
+  grd.addColorStop(0.0,'#fff6e2'); grd.addColorStop(0.28,'#8a765c');
+  grd.addColorStop(0.55,'#33291f'); grd.addColorStop(0.8,'#161009'); grd.addColorStop(1.0,'#070504');
+  g.fillStyle=grd; g.fillRect(0,0,16,256);
+  const gradTex = new THREE.CanvasTexture(gradC); gradTex.colorSpace = THREE.SRGBColorSpace;
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(40, 16, 16),
+    new THREE.MeshBasicMaterial({ map:gradTex, side:THREE.BackSide }));
+  envScene.add(sky);
+  const mkPanel=(x,y,z,w,h,c)=>{ const p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+    new THREE.MeshBasicMaterial({color:c})); p.position.set(x,y,z); p.lookAt(0,0,0); envScene.add(p); };
+  mkPanel(-9, 6, 4, 6, 9, 0xffffff);   // cool window streak
+  mkPanel( 8, 3, 6, 4, 6, 0xffe0b0);   // warm bounce
+  mkPanel( 0, 9,-6, 7, 3, 0xcfd8e8);   // ceiling softbox
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(envScene, 0.06).texture;
+  pmrem.dispose();
+}
+
+/* ============================================================
+   3. Procedural canvas textures
+   ============================================================ */
+function canvasTexture(w, h, draw, repeat){
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  if(repeat) t.repeat.set(repeat[0], repeat[1]);
+  t.anisotropy = 8;
+  return t;
+}
+
+const deskTex = canvasTexture(1024, 512, (g,w,h)=>{
+  g.fillStyle = '#392417'; g.fillRect(0,0,w,h);
+  const plankH = 86, rng = mulberry32(42);
+  for(let y=0; y<h; y+=plankH){
+    const l = 0.82 + rng()*0.42;
+    g.fillStyle = `rgba(${Math.floor(74*l)},${Math.floor(46*l)},${Math.floor(28*l)},0.9)`;
+    g.fillRect(0,y,w,plankH-3);
+    g.fillStyle = 'rgba(20,12,7,1)'; g.fillRect(0,y+plankH-3,w,3);
+    for(let i=0;i<46;i++){ // grain streaks
+      const gy = y + rng()*plankH, len = 80+rng()*360, x0 = rng()*w;
+      g.strokeStyle = rng()<0.72 ? `rgba(24,14,8,${0.16+rng()*0.3})` : `rgba(150,110,72,${0.12+rng()*0.2})`;
+      g.lineWidth = 0.6 + rng()*1.8;
+      g.beginPath(); g.moveTo(x0, gy);
+      g.bezierCurveTo(x0+len*0.3, gy+(rng()-0.5)*6, x0+len*0.7, gy+(rng()-0.5)*6, x0+len, gy+(rng()-0.5)*4);
+      g.stroke();
+    }
+    if(rng()<0.65){ // knot
+      const kx=rng()*w, ky=y+plankH*(0.3+rng()*0.4);
+      for(let r=9;r>1;r-=1.6){ g.strokeStyle=`rgba(26,15,9,${0.25+0.05*r})`; g.lineWidth=1.4;
+        g.beginPath(); g.ellipse(kx,ky,r*1.7,r,0,0,Math.PI*2); g.stroke(); }
+    }
+  }
+  const vg = g.createRadialGradient(w/2,h/2,h*0.35,w/2,h/2,w*0.72);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.42)');
+  g.fillStyle=vg; g.fillRect(0,0,w,h);
+}, [2.6, 2.6]);
+
+const frameWoodTex = canvasTexture(512, 512, (g,w,h)=>{
+  g.fillStyle = '#241610'; g.fillRect(0,0,w,h);
+  const rng = mulberry32(77);
+  for(let i=0;i<220;i++){
+    const x = rng()*w;
+    g.strokeStyle = rng()<0.7 ? `rgba(12,7,4,${0.2+rng()*0.35})` : `rgba(96,62,36,${0.15+rng()*0.25})`;
+    g.lineWidth = 0.6 + rng()*2.4;
+    g.beginPath(); g.moveTo(x, 0);
+    g.bezierCurveTo(x+(rng()-0.5)*30, h*0.33, x+(rng()-0.5)*30, h*0.66, x+(rng()-0.5)*18, h);
+    g.stroke();
+  }
+});
+
+const wallTex = canvasTexture(1024, 512, (g,w,h)=>{
+  const grd = g.createLinearGradient(0,0,0,h);
+  grd.addColorStop(0,'#2a3124'); grd.addColorStop(0.55,'#232a20'); grd.addColorStop(1,'#171310');
+  g.fillStyle = grd; g.fillRect(0,0,w,h);
+  for(let x=0;x<w;x+=44){ g.fillStyle='rgba(255,255,255,0.028)'; g.fillRect(x,0,12,h); }
+  // faint damask diamond lattice
+  g.strokeStyle='rgba(230,220,190,0.05)'; g.lineWidth=1.6;
+  for(let y=24;y<h*0.62;y+=52){
+    for(let x=((y/52)%2?26:0); x<w; x+=52){
+      g.beginPath(); g.moveTo(x,y-11); g.lineTo(x+11,y); g.lineTo(x,y+11); g.lineTo(x-11,y); g.closePath(); g.stroke();
+      g.beginPath(); g.arc(x,y,2.2,0,Math.PI*2); g.stroke();
+    }
+  }
+  // wainscot
+  g.fillStyle='#16110d'; g.fillRect(0,h*0.70,w,h*0.30);
+  g.fillStyle='#3a2f24'; g.fillRect(0,h*0.70,w,6); g.fillRect(0,h*0.755,w,3);
+  const vg=g.createRadialGradient(w/2,h*0.42,h*0.2,w/2,h*0.42,w*0.75);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.5)');
+  g.fillStyle=vg; g.fillRect(0,0,w,h);
+});
+
+const globeTex = canvasTexture(1024, 512, (g,w,h)=>{
+  g.fillStyle = '#b49b6b'; g.fillRect(0,0,w,h);
+  const rng = mulberry32(20250);
+  for(let i=0;i<2600;i++){ // parchment mottle
+    g.fillStyle = `rgba(${140+rng()*60|0},${115+rng()*50|0},${70+rng()*40|0},0.16)`;
+    g.fillRect(rng()*w, rng()*h, 2+rng()*7, 2+rng()*7);
+  }
+  // continents — seeded random-walk blobs
+  const continent=(cx,cy,R)=>{
+    const pts=[], n=16+(rng()*10|0);
+    for(let i=0;i<n;i++){ const a=i/n*Math.PI*2, r=R*(0.62+rng()*0.55);
+      pts.push([cx+Math.cos(a)*r*1.35, cy+Math.sin(a)*r*0.8]); }
+    g.beginPath(); g.moveTo(pts[0][0],pts[0][1]);
+    for(let i=1;i<pts.length;i++){ const p=pts[i], q=pts[(i+1)%pts.length];
+      g.quadraticCurveTo(p[0],p[1],(p[0]+q[0])/2,(p[1]+q[1])/2); }
+    g.closePath();
+    g.fillStyle='#6d5836'; g.fill();
+    g.strokeStyle='#3f3120'; g.lineWidth=3.4; g.stroke();
+    g.fillStyle='rgba(120,98,60,0.5)'; g.fill();
+  };
+  [[180,150,52],[330,300,44],[480,140,62],[620,260,48],[760,170,56],[880,330,40],[120,330,36],[540,380,26],[920,120,24]]
+    .forEach(c=>continent(c[0],c[1],c[2]));
+  // ice caps
+  g.fillStyle='rgba(232,226,208,0.85)'; g.fillRect(0,0,w,26); g.fillRect(0,h-26,w,26);
+  // graticule
+  g.strokeStyle='rgba(60,45,25,0.4)'; g.lineWidth=1.4;
+  for(let x=0;x<=w;x+=w/18){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke(); }
+  for(let y=0;y<=h;y+=h/9){ g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
+  g.strokeStyle='rgba(60,45,25,0.65)'; g.lineWidth=2.4;
+  g.beginPath(); g.moveTo(0,h/2); g.lineTo(w,h/2); g.stroke();
+});
+
+function makeBookTexture(cloth, title, seed){
+  return canvasTexture(256, 340, (g,w,h)=>{
+    g.fillStyle = cloth; g.fillRect(0,0,w,h);
+    const rng = mulberry32(seed);
+    for(let i=0;i<900;i++){ g.fillStyle=`rgba(0,0,0,${rng()*0.12})`; g.fillRect(rng()*w,rng()*h,1.6,1.6); }
+    g.strokeStyle='#c8a24e'; g.lineWidth=4; g.strokeRect(16,16,w-32,h-32);
+    g.lineWidth=1.6; g.strokeRect(28,28,w-56,h-56);
+    g.fillStyle='#d9b45c'; g.textAlign='center';
+    g.font='bold 21px Georgia'; 
+    const words = title.split(' ');
+    words.forEach((word,i)=> g.fillText(word, w/2, h/2 - (words.length-1)*15 + i*30));
+    // ornament
+    g.save(); g.translate(w/2, h*0.24); g.rotate(Math.PI/4); g.fillRect(-9,-9,18,18); g.restore();
+    g.save(); g.translate(w/2, h*0.78); g.rotate(Math.PI/4); g.strokeRect(-8,-8,16,16); g.restore();
+    const vg=g.createRadialGradient(w/2,h/2,h*0.28,w/2,h/2,h*0.62);
+    vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.4)'); g.fillStyle=vg; g.fillRect(0,0,w,h);
+  });
+}
+const bookTexes = [
+  makeBookTexture('#3d2b3f','DE HUMANI CORPORIS',11),
+  makeBookTexture('#233528','HOROLOGII · FABRIC',23),
+  makeBookTexture('#402018','ASTRONOMIA NOVA',37),
+  makeBookTexture('#1e2c44','NATURAL PHILOSOPHY',51)
+];
+
+const watchFaceTex = canvasTexture(256, 256, (g,w,h)=>{
+  g.fillStyle='#efe6cf'; g.beginPath(); g.arc(128,128,126,0,Math.PI*2); g.fill();
+  g.strokeStyle='#2b241a'; g.lineWidth=5; g.beginPath(); g.arc(128,128,120,0,Math.PI*2); g.stroke();
+  g.fillStyle='#2b241a'; g.textAlign='center'; g.font='bold 22px Georgia';
+  const numerals=['XII','III','VI','IX']; const pos=[[128,34],[228,136],[128,240],[28,136]];
+  numerals.forEach((n,i)=>g.fillText(n,pos[i][0],pos[i][1]));
+  for(let i=0;i<60;i++){ const a=i/60*Math.PI*2, big=i%5===0;
+    g.strokeStyle='#2b241a'; g.lineWidth=big?3.4:1.2;
+    g.beginPath(); g.moveTo(128+Math.cos(a)*(big?96:106),128+Math.sin(a)*(big?96:106));
+    g.lineTo(128+Math.cos(a)*114,128+Math.sin(a)*114); g.stroke(); }
+  g.lineWidth=6; g.beginPath(); g.moveTo(128,128); g.lineTo(128+52*Math.cos(-1.1),128+52*Math.sin(-1.1)); g.stroke();
+  g.lineWidth=4; g.beginPath(); g.moveTo(128,128); g.lineTo(128+84*Math.cos(2.2),128+84*Math.sin(2.2)); g.stroke();
+});
+
+const glowTex = canvasTexture(128, 128, (g)=>{
+  const grd=g.createRadialGradient(64,64,2,64,64,62);
+  grd.addColorStop(0,'rgba(255,235,190,1)'); grd.addColorStop(0.3,'rgba(255,190,110,0.55)');
+  grd.addColorStop(1,'rgba(255,160,60,0)');
+  g.fillStyle=grd; g.fillRect(0,0,128,128);
+});
+const dustTex = canvasTexture(32, 32, (g)=>{
+  const grd=g.createRadialGradient(16,16,0.5,16,16,15);
+  grd.addColorStop(0,'rgba(255,246,220,1)'); grd.addColorStop(1,'rgba(255,246,220,0)');
+  g.fillStyle=grd; g.fillRect(0,0,32,32);
+});
+const shaftTex = canvasTexture(128, 512, (g,w,h)=>{
+  const grd=g.createLinearGradient(0,0,w,0);
+  grd.addColorStop(0,'rgba(255,244,214,0)'); grd.addColorStop(0.5,'rgba(255,244,214,0.85)'); grd.addColorStop(1,'rgba(255,244,214,0)');
+  g.fillStyle=grd; g.fillRect(0,0,w,h);
+  const fade=g.createLinearGradient(0,0,0,h);
+  fade.addColorStop(0,'rgba(0,0,0,0)'); fade.addColorStop(1,'rgba(0,0,0,1)');
+  g.globalCompositeOperation='destination-out'; g.fillStyle=fade; g.fillRect(0,0,w,h);
+});
+
+/* ============================================================
+   4. Materials
+   ============================================================ */
+const M = {
+  desk:  new THREE.MeshStandardMaterial({ map:deskTex, roughness:0.62, metalness:0.06, envMapIntensity:0.5 }),
+  wall:  new THREE.MeshStandardMaterial({ map:wallTex, roughness:0.95, metalness:0.0 }),
+  wood:  new THREE.MeshStandardMaterial({ map:frameWoodTex, roughness:0.55, metalness:0.05, envMapIntensity:0.5, bumpMap:frameWoodTex, bumpScale:0.015 }),
+  brass: new THREE.MeshStandardMaterial({ color:0xc9a24b, roughness:0.27, metalness:1.0, envMapIntensity:1.35 }),
+  brassDark: new THREE.MeshStandardMaterial({ color:0x8a6a2c, roughness:0.4, metalness:1.0, envMapIntensity:1.0 }),
+  glass: new THREE.MeshPhysicalMaterial({
+    color:0xffffff, roughness:0.035, metalness:0, transmission:1.0, thickness:0.38,
+    ior:1.52, clearcoat:1.0, clearcoatRoughness:0.05, attenuationColor:new THREE.Color(0xf3e6c8),
+    attenuationDistance:1.6, envMapIntensity:1.5, specularIntensity:1.0, side:THREE.DoubleSide
+  }),
+  wax:   new THREE.MeshStandardMaterial({ color:0xe7dbc0, roughness:0.48, metalness:0.0 }),
+  pages: new THREE.MeshStandardMaterial({ color:0xd8cfb4, roughness:0.9 }),
+  globe: new THREE.MeshStandardMaterial({ map:globeTex, roughness:0.55, metalness:0.05, envMapIntensity:0.6 })
+};
+
+/* ============================================================
+   5. Lights
+   ============================================================ */
+const hemi = new THREE.HemisphereLight(0x8a7a68, 0x20160e, 0.55);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xd9e6f6, 2.6);           // cool window key
+sun.position.set(-4.6, 6.2, 3.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.camera.left=-5.5; sun.shadow.camera.right=5.5;
+sun.shadow.camera.top=6; sun.shadow.camera.bottom=-3;
+sun.shadow.camera.near=1; sun.shadow.camera.far=16;
+sun.shadow.bias=-0.0004; sun.shadow.normalBias=0.02; sun.shadow.radius=5;
+scene.add(sun);
+
+const rim = new THREE.DirectionalLight(0xffe2b8, 0.85);          // warm rim from back-right
+rim.position.set(3.4, 4.6, -3.6);
+scene.add(rim);
+
+const candleLight = new THREE.PointLight(0xff9e4e, 26, 13, 2);   // candle glow
+candleLight.position.set(2.05, 1.06, 1.05);
+candleLight.castShadow = true;
+candleLight.shadow.mapSize.set(1024,1024);
+candleLight.shadow.bias = -0.005;
+scene.add(candleLight);
+
+const glowFill = new THREE.PointLight(0xffd9a0, 4, 6, 2);        // gentle warm bounce front
+glowFill.position.set(0, 2.2, 3.6);
+scene.add(glowFill);
+
+/* ============================================================
+   6. Room: desk, wall, window glow, light shaft
+   ============================================================ */
+const desk = new THREE.Mesh(new THREE.PlaneGeometry(30, 22), M.desk);
+desk.rotation.x = -Math.PI/2; desk.position.set(0, 0, 0.5);
+desk.receiveShadow = true;
+scene.add(desk);
+
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(40, 15), M.wall);
+wall.position.set(0, 5.4, -7);
+wall.receiveShadow = true;
+scene.add(wall);
+
+// glowing window on back-left wall (motivates the cool key + bloom)
+const windowGroup = new THREE.Group();
+{
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 3.15),
+    new THREE.MeshBasicMaterial({ color:0xe9f2fc }));
+  windowGroup.add(glow);
+  const barMat = new THREE.MeshStandardMaterial({ color:0x171310, roughness:0.85 });
+  const mkBar=(w,h,x,y)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.07), barMat);
+    b.position.set(x,y,0.045); windowGroup.add(b); };
+  mkBar(2.3,0.12,0,0); mkBar(0.12,3.15,0,0);
+  mkBar(2.5,0.16,0, 1.62); mkBar(2.5,0.16,0,-1.62); mkBar(0.16,3.35, 1.2,0); mkBar(0.16,3.35,-1.2,0);
+  windowGroup.position.set(-3.6, 2.85, -6.92);
+  windowGroup.rotation.y = 0.12;
+  scene.add(windowGroup);
+}
+// volumetric-feel light shaft (two crossed additive planes)
+{
+  const mkShaft=(opacity, rotY)=>{
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 5.0),
+      new THREE.MeshBasicMaterial({ map:shaftTex, transparent:true, opacity,
+        blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide, fog:false }));
+    p.position.set(-1.7, 2.5, -0.9); p.rotation.z = 0.62; p.rotation.y = rotY;
+    scene.add(p);
+  };
+  mkShaft(0.34, 0.25); mkShaft(0.18, Math.PI/2 + 0.25);
+}
+
+/* ============================================================
+   7. Props: globe, books, candle, pocket watch, dust
+   ============================================================ */
+const globeGroup = new THREE.Group();
+let globeSphere;
+{
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.46, 0.12, 32), M.wood);
+  base.position.y = 0.06; base.castShadow = base.receiveShadow = true; globeGroup.add(base);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.42, 16), M.brass);
+  stem.position.y = 0.32; stem.castShadow = true; globeGroup.add(stem);
+  const arc = new THREE.Mesh(new THREE.TorusGeometry(0.74, 0.035, 12, 48, Math.PI*1.15), M.brass);
+  arc.position.y = 1.28; arc.rotation.z = Math.PI*0.92; arc.castShadow = true; globeGroup.add(arc);
+  globeSphere = new THREE.Mesh(new THREE.SphereGeometry(0.62, 48, 32), M.globe);
+  globeSphere.position.y = 1.28; globeSphere.rotation.z = 0.41; globeSphere.castShadow = true;
+  globeGroup.add(globeSphere);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), M.brass);
+  finial.position.y = 2.06; globeGroup.add(finial);
+  globeGroup.position.set(-2.65, 0, -1.75);
+  scene.add(globeGroup);
+}
+{
+  const bookDefs = [
+    { tex:bookTexes[0], s:[1.55,0.30,1.12], y:0.15, rot: 0.18 },
+    { tex:bookTexes[1], s:[1.34,0.26,1.00], y:0.43, rot:-0.24 },
+    { tex:bookTexes[2], s:[1.46,0.34,1.06], y:0.73, rot: 0.09 },
+    { tex:bookTexes[3], s:[1.20,0.24,0.90], y:1.02, rot:-0.13 }
+  ];
+  for(const b of bookDefs){
+    const cover = new THREE.MeshStandardMaterial({ map:b.tex, roughness:0.55, envMapIntensity:0.4 });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...b.s),
+      [M.pages, M.pages, cover, cover, M.pages, M.pages]);
+    mesh.position.set(2.5, b.y, -1.45); mesh.rotation.y = b.rot;
+    mesh.castShadow = mesh.receiveShadow = true;
+    scene.add(mesh);
+  }
+}
+let flameOuter, flameInner, flameGlow;
+{
+  const g = new THREE.Group();
+  const foot = new THREE.Mesh(new THREE.LatheGeometry([
+    new THREE.Vector2(0.001,0), new THREE.Vector2(0.24,0), new THREE.Vector2(0.26,0.03),
+    new THREE.Vector2(0.16,0.07), new THREE.Vector2(0.10,0.10), new THREE.Vector2(0.17,0.14),
+    new THREE.Vector2(0.19,0.17), new THREE.Vector2(0.12,0.20), new THREE.Vector2(0.085,0.24)
+  ], 40), M.brass);
+  foot.position.y = 0; foot.castShadow = true; g.add(foot);
+  const wax = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.095, 0.5, 24), M.wax);
+  wax.position.y = 0.46; wax.castShadow = true; g.add(wax);
+  const melt = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.02, 10, 24), M.wax);
+  melt.rotation.x = Math.PI/2; melt.position.y = 0.71; g.add(melt);
+  flameOuter = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 12),
+    new THREE.MeshBasicMaterial({ color:0xffc06a, fog:false }));
+  flameOuter.scale.set(1, 2.05, 1); flameOuter.position.y = 0.845; g.add(flameOuter);
+  flameInner = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 10),
+    new THREE.MeshBasicMaterial({ color:0xfff6da, fog:false }));
+  flameInner.scale.set(1, 2.1, 1); flameInner.position.y = 0.825; g.add(flameInner);
+  flameGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map:glowTex, color:0xffc178,
+    transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
+  flameGlow.scale.set(0.85, 0.85, 1); flameGlow.position.y = 0.86; g.add(flameGlow);
+  g.position.set(2.05, 0, 1.05);
+  scene.add(g);
+}
+{ // pocket watch
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.075, 40), M.brass);
+  body.rotation.x = Math.PI/2; body.castShadow = true; g.add(body);
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.245, 40),
+    new THREE.MeshStandardMaterial({ map:watchFaceTex, roughness:0.35, envMapIntensity:0.8 }));
+  face.position.z = 0.040; g.add(face);
+  const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.08, 16), M.brass);
+  crown.position.y = 0.345; g.add(crown);
+  g.position.set(-1.75, 0.045, 1.25); g.rotation.set(-Math.PI/2.15, 0, 0.5);
+  scene.add(g);
+}
+// dust motes in the shaft
+const MOTES = 240;
+const moteBase = new Float32Array(MOTES*3);
+const motePhase = new Float32Array(MOTES);
+const moteSpeed = new Float32Array(MOTES);
+let dustGeo;
+{
+  const rng = mulberry32(999);
+  const positions = new Float32Array(MOTES*3);
+  for(let i=0;i<MOTES;i++){
+    moteBase[i*3+0] = -3.1 + rng()*3.1;      // x
+    moteBase[i*3+1] =  0.3 + rng()*3.6;      // y
+    moteBase[i*3+2] = -1.9 + rng()*3.0;      // z
+    motePhase[i] = rng()*Math.PI*2;
+    moteSpeed[i] = 0.028 + rng()*0.05;
+    positions.set([moteBase[i*3], moteBase[i*3+1], moteBase[i*3+2]], i*3);
+  }
+  dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+    map:dustTex, color:0xfff0cf, size:0.045, sizeAttenuation:true, transparent:true,
+    opacity:0.6, blending:THREE.AdditiveBlending, depthWrite:false }));
+  dust.renderOrder = 5;
+  scene.add(dust);
+}
+
+/* ============================================================
+   8. THE HOURGLASS — glass + carved frame
+   ============================================================ */
+const hourglassGroup = new THREE.Group();   // placed on desk
+const tiltGroup = new THREE.Group();        // user drag tilt
+const flipGroup = new THREE.Group();        // 180° flips (contains everything)
+hourglassGroup.add(tiltGroup); tiltGroup.add(flipGroup); scene.add(hourglassGroup);
+const FLIP_Y = 1.80;
+flipGroup.position.y = FLIP_Y;
+
+const glassMesh = new THREE.Mesh(new THREE.LatheGeometry(PROFILE_PTS, 128), M.glass);
+glassMesh.renderOrder = 4;
+flipGroup.add(glassMesh);
+
+// seat rings where glass meets caps
+for(const s of [-1, 1]){
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.02, 0.085, 14, 64), M.wood);
+  ring.rotation.x = Math.PI/2; ring.position.y = s*1.415; ring.castShadow = true;
+  flipGroup.add(ring);
+}
+// brass neck ferrules
+for(const s of [-1, 1]){
+  const ferrule = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.028, 12, 40), M.brass);
+  ferrule.rotation.x = Math.PI/2; ferrule.position.y = s*0.105;
+  flipGroup.add(ferrule);
+}
+// caps (top & bottom)
+for(const s of [-1, 1]){
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(1.30, 1.30, 0.17, 72), M.wood);
+  cap.position.y = s*1.585; cap.castShadow = cap.receiveShadow = true; flipGroup.add(cap);
+  const trimTop = new THREE.Mesh(new THREE.TorusGeometry(1.30, 0.045, 12, 72), M.brass);
+  trimTop.rotation.x = Math.PI/2; trimTop.position.y = s*1.50; flipGroup.add(trimTop);
+  const trimEdge = new THREE.Mesh(new THREE.TorusGeometry(1.24, 0.05, 12, 72), M.wood);
+  trimEdge.rotation.x = Math.PI/2; trimEdge.position.y = s*1.668; flipGroup.add(trimEdge);
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(1.10, 1.18, 0.05, 72), M.wood);
+  plate.position.y = s*1.71; plate.castShadow = true; flipGroup.add(plate);
+}
+// finial (top) — after a flip it becomes the base; frame is symmetric so it still reads
+const finial = new THREE.Group();
+{
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 16, 0, Math.PI*2, 0, Math.PI/2), M.brass);
+  dome.scale.y = 1.25; finial.add(dome);
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.24, 0.07, 32), M.brassDark);
+  collar.position.y = 0.0; finial.add(collar);
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.22, 20), M.brass);
+  spire.position.y = 0.30; finial.add(spire);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 12), M.brass);
+  orb.position.y = 0.43; finial.add(orb);
+  finial.position.y = 1.735; finial.castShadow = true;
+  flipGroup.add(finial);
+}
+// bun feet (bottom)
+for(let i=0;i<3;i++){
+  const a = i/3*Math.PI*2 + Math.PI/6;
+  const foot = new THREE.Mesh(new THREE.SphereGeometry(0.115, 18, 14), M.brass);
+  foot.position.set(Math.cos(a)*0.95, -1.76, Math.sin(a)*0.95);
+  foot.scale.y = 0.8; foot.castShadow = true;
+  flipGroup.add(foot);
+}
+// three turned pillars with brass caps
+const pillarSpline = new THREE.SplineCurve([
+  new THREE.Vector2(0.105,-1.50), new THREE.Vector2(0.105,-1.44), new THREE.Vector2(0.135,-1.395),
+  new THREE.Vector2(0.088,-1.28), new THREE.Vector2(0.068,-0.88), new THREE.Vector2(0.088,-0.55),
+  new THREE.Vector2(0.062,-0.24), new THREE.Vector2(0.062, 0.24), new THREE.Vector2(0.088, 0.55),
+  new THREE.Vector2(0.068, 0.88), new THREE.Vector2(0.088, 1.28), new THREE.Vector2(0.135, 1.395),
+  new THREE.Vector2(0.105, 1.44), new THREE.Vector2(0.105, 1.50)
+]);
+const pillarPts = pillarSpline.getPoints(72);
+for(const deg of [30, 150, 270]){
+  const a = deg*Math.PI/180;
+  const pillar = new THREE.Mesh(new THREE.LatheGeometry(pillarPts, 44), M.wood);
+  pillar.position.set(Math.cos(a)*1.17, 0, Math.sin(a)*1.17);
+  pillar.castShadow = true;
+  flipGroup.add(pillar);
+  for(const s of [-1, 1]){
+    const capC = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.145, 0.14, 24), M.brass);
+    capC.position.set(Math.cos(a)*1.17, s*1.455, Math.sin(a)*1.17);
+    capC.castShadow = true; flipGroup.add(capC);
+    const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.088, 0.088, 0.055, 20), M.brass);
+    collar.position.set(Math.cos(a)*1.17, s*1.28, Math.sin(a)*1.17);
+    flipGroup.add(collar);
+  }
+}
+
+/* ============================================================
+   9. SAND — granular simulation (≥6000 grains)
+   ============================================================ */
+const N = 6500;
+const GRAIN_R = 0.026;
+const MIN_D = GRAIN_R*2;
+const MIN_D2 = MIN_D*MIN_D;
+const G = 9.0;
+const FIXED_H = 1/90;
+
+const px = new Float32Array(N), py = new Float32Array(N), pz = new Float32Array(N);
+const vx = new Float32Array(N), vy = new Float32Array(N), vz = new Float32Array(N);
+const grainQuat = [];
+const grainScale = new Float32Array(N);
+const grainColor = [];
+
+// cumulative sand volume from the neck upward, to find a settled fill line
+const FILL_Y_START = 0.10;
+const cumVol = (() => {
+  const ys = [], cum = [];
+  let v = 0;
+  for(let y=FILL_Y_START; y<=1.36; y+=0.008){
+    const r = Math.max(0.012, innerR(y) - GRAIN_R - 0.015);
+    v += Math.PI*r*r*0.008;
+    ys.push(y); cum.push(v);
+  }
+  return { ys, cum, total:v };
+})();
+const GRAIN_VOL = (4/3)*Math.PI*Math.pow(GRAIN_R,3);
+const TARGET_VOL = N*GRAIN_VOL/0.60;
+
+function sandFillHeight(){
+  for(let i=0;i<cumVol.cum.length;i++) if(cumVol.cum[i] >= TARGET_VOL) return cumVol.ys[i];
+  return 1.30;
+}
+function yForVolume(v){
+  let lo=0, hi=cumVol.cum.length-1;
+  while(hi-lo>1){ const mid=(lo+hi)>>1; if(cumVol.cum[mid]<v) lo=mid; else hi=mid; }
+  const span = cumVol.cum[hi]-cumVol.cum[lo] || 1e-9;
+  return cumVol.ys[lo] + (cumVol.ys[hi]-cumVol.ys[lo])*((v-cumVol.cum[lo])/span);
+}
+
+function resetSand(){
+  const rng = mulberry32(1337);
+  for(let i=0;i<N;i++){
+    const v = rng()*TARGET_VOL;
+    const y = yForVolume(v);
+    const maxR = Math.max(0.01, innerR(y)*0.90 - GRAIN_R);
+    const r = Math.sqrt(rng())*maxR;
+    const th = rng()*Math.PI*2;
+    px[i] = Math.cos(th)*r; pz[i] = Math.sin(th)*r; py[i] = y;
+    vx[i] = vy[i] = vz[i] = 0;
+    grainQuat[i] = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(rng()*Math.PI, rng()*Math.PI, rng()*Math.PI));
+    grainScale[i] = 0.82 + rng()*0.42;
+    grainColor[i] = new THREE.Color().setHSL(0.098 + rng()*0.038, 0.60+rng()*0.28, 0.40+rng()*0.24);
+  }
+}
+
+// instanced mesh of golden grains
+const grainGeo = new THREE.IcosahedronGeometry(GRAIN_R*1.02, 0);
+const grainMat = new THREE.MeshStandardMaterial({ roughness:0.48, metalness:0.08, envMapIntensity:0.7 });
+const grainsMesh = new THREE.InstancedMesh(grainGeo, grainMat, N);
+grainsMesh.frustumCulled = false;
+grainsMesh.castShadow = true;
+grainsMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+flipGroup.add(grainsMesh);
+resetSand();
+for(let i=0;i<N;i++) grainsMesh.setColorAt(i, grainColor[i]);
+grainsMesh.instanceColor.needsUpdate = true;
+
+// spatial hash grid (linked list)
+const GRID_SIZE = 8192;
+const gridHead = new Int32Array(GRID_SIZE);
+const gridNext = new Int32Array(N);
+const CELL = MIN_D*1.05, ORIGIN = 4.0;
+const cellOf = p => Math.floor((p + ORIGIN)/CELL);
+const gridKey = (ix,iy,iz) => (((ix*73856093) ^ (iy*19349663) ^ (iz*83492791)) >>> 0) & (GRID_SIZE-1);
+
+const _q = new THREE.Quaternion(), _gLocal = new THREE.Vector3(), _gqInv = new THREE.Quaternion();
+
+function physicsStep(h){
+  simTime += h;
+
+  // gravity rotated into the hourglass's local frame (flip-aware)
+  flipGroup.updateMatrixWorld(true);
+  flipGroup.getWorldQuaternion(_q);
+  _gqInv.copy(_q).invert();
+  _gLocal.set(0, -G, 0).applyQuaternion(_gqInv);
+
+  const drag = 1 - 0.06*h;
+  for(let i=0;i<N;i++){
+    vx[i] = vx[i]*drag + _gLocal.x*h;
+    vy[i] = vy[i]*drag + _gLocal.y*h;
+    vz[i] = vz[i]*drag + _gLocal.z*h;
+    // clamp terminal speed
+    const sp2 = vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i];
+    if(sp2 > 30){ const s = Math.sqrt(30/sp2); vx[i]*=s; vy[i]*=s; vz[i]*=s; }
+    px[i]+=vx[i]*h; py[i]+=vy[i]*h; pz[i]+=vz[i]*h;
+  }
+
+  // build grid
+  gridHead.fill(-1);
+  for(let i=0;i<N;i++){
+    const k = gridKey(cellOf(px[i]), cellOf(py[i]), cellOf(pz[i]));
+    gridNext[i] = gridHead[k]; gridHead[k] = i;
+  }
+
+  // constraint iterations: grain–grain contact with friction, glass profile
+  const ITER = 2;
+  for(let iter=0; iter<ITER; iter++){
+    // --- particle / particle
+    for(let i=0;i<N;i++){
+      const ix=cellOf(px[i]), iy=cellOf(py[i]), iz=cellOf(pz[i]);
+      for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++) for(let dz=-1;dz<=1;dz++){
+        let j = gridHead[gridKey(ix+dx, iy+dy, iz+dz)];
+        for(; j!==-1; j=gridNext[j]){
+          if(j<=i) continue;
+          let ddx = px[j]-px[i], ddy = py[j]-py[i], ddz = pz[j]-pz[i];
+          const d2 = ddx*ddx+ddy*ddy+ddz*ddz;
+          if(d2 >= MIN_D2 || d2 < 1e-12) continue;
+          const d = Math.sqrt(d2);
+          const nx = ddx/d, ny = ddy/d, nz = ddz/d;
+          const overlap = MIN_D - d;
+          // positional separation
+          const corr = overlap*0.42;
+          px[i]-=nx*corr; py[i]-=ny*corr; pz[i]-=nz*corr;
+          px[j]+=nx*corr; py[j]+=ny*corr; pz[j]+=nz*corr;
+          // normal impulse (nearly inelastic)
+          const rvx=vx[j]-vx[i], rvy=vy[j]-vy[i], rvz=vz[j]-vz[i];
+          const vn = rvx*nx + rvy*ny + rvz*nz;
+          if(vn < 0){
+            const jn = -(1.0 + 0.05)*vn*0.5;
+            vx[i]-=nx*jn; vy[i]-=ny*jn; vz[i]-=nz*jn;
+            vx[j]+=nx*jn; vy[j]+=ny*jn; vz[j]+=nz*jn;
+            // tangential friction — this is what yields the ~34° repose cone
+            const tx=rvx-nx*vn, ty=rvy-ny*vn, tz=rvz-nz*vn;
+            const tl = Math.sqrt(tx*tx+ty*ty+tz*tz);
+            if(tl > 1e-6){
+              const jt = Math.min(0.62*jn, tl*0.5);
+              const ux=tx/tl, uy=ty/tl, uz=tz/tl;
+              vx[i]+=ux*jt; vy[i]+=uy*jt; vz[i]+=uz*jt;
+              vx[j]-=ux*jt; vy[j]-=uy*jt; vz[j]-=uz*jt;
+            }
+          }
+        }
+      }
+    }
+    // --- glass containment (lathe profile as radial bound)
+    for(let i=0;i<N;i++){
+      const d = Math.sqrt(px[i]*px[i] + pz[i]*pz[i]);
+      const maxR = innerR(py[i]) - GRAIN_R;
+      if(d > maxR){
+        const nx = px[i]/(d||1e-6), nz = pz[i]/(d||1e-6);
+        const push = d - maxR;
+        px[i]-=nx*push; pz[i]-=nz*push;
+        const vn = vx[i]*nx + vz[i]*nz;         // radial component (n has no y)
+        if(vn > 0){ vx[i]-=nx*vn; vz[i]-=nz*vn; }
+        // wall friction (tangential incl. vertical)
+        vx[i]*=0.90; vz[i]*=0.90; vy[i]*=0.96;
+      }
+      // hard safety clamps
+      if(py[i] < -1.355){ py[i] = -1.355; if(vy[i]<0) vy[i] = 0; }
+      if(py[i] >  1.355){ py[i] =  1.355; if(vy[i]>0) vy[i] = 0; }
+    }
+  }
+
+  // flip animation advance
+  if(flipAnim.active){
+    flipAnim.t += h;
+    const k = clamp(flipAnim.t/flipAnim.dur, 0, 1);
+    flipAngle = flipAnim.from + (flipAnim.to - flipAnim.from)*easeInOutCubic(k);
+    flipGroup.rotation.z = flipAngle;
+    if(k >= 1){ flipAnim.active = false; flipsDone++; }
+  }
+}
+
+const _m4 = new THREE.Matrix4(), _p3 = new THREE.Vector3(), _s3 = new THREE.Vector3();
+function updateGrainInstances(){
+  for(let i=0;i<N;i++){
+    _p3.set(px[i], py[i], pz[i]);
+    _s3.setScalar(grainScale[i]);
+    _m4.compose(_p3, grainQuat[i], _s3);
+    grainsMesh.setMatrixAt(i, _m4);
+  }
+  grainsMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* ============================================================
+   10. Simulation clock, flips, reset
+   ============================================================ */
+let simTime = 0;
+let flipAngle = 0;
+let flipsDone = 0;
+const flipAnim = { active:false, t:0, dur:1.6, from:0, to:0 };
+let tiltX = 0, tiltZ = 0, tiltXT = 0, tiltZT = 0;
+
+function triggerFlip(){
+  if(flipAnim.active) return;
+  flipAnim.active = true;
+  flipAnim.t = 0;
+  flipAnim.from = flipAngle;
+  flipAnim.to = flipAngle + Math.PI;
+}
+function resetAll(){
+  simTime = 0; flipAngle = 0; flipsDone = 0;
+  flipAnim.active = false;
+  flipGroup.rotation.z = 0;
+  tiltX = tiltZ = tiltXT = tiltZT = 0;
+  tiltGroup.rotation.set(0,0,0);
+  resetSand();
+  updateGrainInstances();
+}
+
+/* ============================================================
+   11. Interaction — click to flip, drag to tilt, R to reset
+   ============================================================ */
+const raycaster = new THREE.Raycaster();
+const pointerNDC = new THREE.Vector2();
+let pDown = null, dragging = false;
+
+function castAt(clientX, clientY){
+  pointerNDC.set((clientX/window.innerWidth)*2 - 1, -(clientY/window.innerHeight)*2 + 1);
+  raycaster.setFromCamera(pointerNDC, camera);
+  return raycaster.intersectObjects(flipGroup.children, true).length > 0;
+}
+canvas.addEventListener('pointerdown', e => {
+  pDown = { x:e.clientX, y:e.clientY, t:performance.now() };
+  dragging = false;
+  canvas.classList.add('grabbing');
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => {
+  if(pDown){
+    const dx = e.clientX - pDown.x, dy = e.clientY - pDown.y;
+    if(!dragging && dx*dx + dy*dy > 49) dragging = true;
+    if(dragging){
+      tiltZT = clamp(-dx*0.0032, -0.30, 0.30);
+      tiltXT = clamp( dy*0.0028, -0.26, 0.26);
+    }
+  } else {
+    canvas.style.cursor = castAt(e.clientX, e.clientY) ? 'pointer' : 'grab';
+  }
+});
+canvas.addEventListener('pointerup', e => {
+  if(pDown && !dragging && (performance.now()-pDown.t) < 600){
+    if(castAt(e.clientX, e.clientY)) triggerFlip();
+  }
+  pDown = null; dragging = false;
+  tiltXT = 0; tiltZT = 0;
+  canvas.classList.remove('grabbing');
+});
+canvas.addEventListener('pointercancel', () => { pDown=null; dragging=false; tiltXT=0; tiltZT=0; canvas.classList.remove('grabbing'); });
+window.addEventListener('keydown', e => {
+  if(e.key === 'r' || e.key === 'R') resetAll();
+});
+
+/* ============================================================
+   12. Showcase — deterministic 12 s scripted camera & events
+   ============================================================ */
+const SHOWCASE_DURATION = 12.0;
+const FLIP_AT = 5.0;
+const CAM_KEYS = [
+  { t: 0.0, pos:[ 5.35, 2.75, 6.35], tgt:[0, 1.45, 0], fov:39 },
+  { t: 2.4, pos:[ 3.15, 2.05, 4.35], tgt:[0, 1.60, 0], fov:36 },
+  { t: 4.6, pos:[ 1.62, 2.05, 2.42], tgt:[0, 1.95, 0.1], fov:33 },   // close on the neck / stream
+  { t: 6.6, pos:[-2.35, 1.15, 2.75], tgt:[0, 1.15, 0], fov:35 },     // low angle after the flip
+  { t: 9.0, pos:[-1.55, 2.55, 3.25], tgt:[0, 1.60, 0], fov:34 },     // high three-quarter
+  { t:12.0, pos:[ 3.65, 2.30, 5.15], tgt:[0, 1.50, 0], fov:40 }      // hero pull-back
+];
+function sampleTimeline(t){
+  let i = 0;
+  while(i < CAM_KEYS.length-2 && t > CAM_KEYS[i+1].t) i++;
+  const a = CAM_KEYS[i], b = CAM_KEYS[i+1];
+  const u = smoothstep(clamp((t - a.t)/(b.t - a.t), 0, 1));
+  const L = (x,y)=>x+(y-x)*u;
+  return {
+    pos:[L(a.pos[0],b.pos[0]), L(a.pos[1],b.pos[1]), L(a.pos[2],b.pos[2])],
+    tgt:[L(a.tgt[0],b.tgt[0]), L(a.tgt[1],b.tgt[1]), L(a.tgt[2],b.tgt[2])],
+    fov:L(a.fov, b.fov)
+  };
+}
+function applyTimeline(t){
+  const s = sampleTimeline(t);
+  camera.position.set(s.pos[0], s.pos[1], s.pos[2]);
+  camera.fov = s.fov; camera.updateProjectionMatrix();
+  controls.target.set(s.tgt[0], s.tgt[1], s.tgt[2]);
+  camera.lookAt(controls.target);
+}
+// advance the fixed-step simulation to absolute time targetT (deterministic)
+function stepSimulationTo(targetT){
+  let guard = 0;
+  while(simTime < targetT - 1e-9 && guard++ < 100000){
+    if(!flipAnim.active && flipsDone === 0 && simTime + FIXED_H >= FLIP_AT){
+      triggerFlip();             // scripted flip, exactly once, keyed to sim time
+    }
+    physicsStep(FIXED_H);
+  }
+}
+function resetForShowcase(){
+  resetAll();
+  controls.enabled = false;
+}
+function seek(t){
+  t = clamp(t, 0, SHOWCASE_DURATION);
+  resetForShowcase();
+  stepSimulationTo(t);
+  tiltX = 0; tiltZ = 0; tiltGroup.rotation.set(0,0,0);
+  applyTimeline(t);
+  updateGrainInstances();
+  animateEnvironment(simTime);
+  composer.render();
+  updateBench();
+  return true;
+}
+window.showcase = { duration: SHOWCASE_DURATION, seek };
+
+/* ============================================================
+   13. Record video — MediaRecorder + captureStream
+   ============================================================ */
+const recordBtn = document.getElementById('recBtn');
+const recDot = document.getElementById('recDot');
+let recordMode = false, showTime = 0, mediaRecorder = null, recChunks = [];
+
+function pickMime(){
+  const cands = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+  for(const c of cands) if(window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
+  return '';
+}
+recordBtn.addEventListener('click', () => {
+  if(recordMode) return;
+  resetForShowcase();
+  showTime = 0; recChunks = [];
+  const stream = renderer.domElement.captureStream(60);
+  const mime = pickMime();
+  mediaRecorder = new MediaRecorder(stream, mime ? { mimeType:mime, videoBitsPerSecond:14_000_000 } : undefined);
+  mediaRecorder.ondataavailable = e => { if(e.data && e.data.size) recChunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(recChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'hourglass-showcase.webm'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    recordBtn.disabled = false;
+    recDot.style.background = '#c0392b';
+    recordBtn.innerHTML = '<span id="recDot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#c0392b;margin-right:9px;vertical-align:1px;"></span>Record video';
+    controls.enabled = true;
+    recordMode = false;
+  };
+  mediaRecorder.start(150);
+  recordMode = true;
+  recordBtn.disabled = true;
+  recDot.style.background = '#ff5a3c';
+  recordBtn.innerHTML = '<span id="recDot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff5a3c;margin-right:9px;vertical-align:1px;"></span>Recording…';
+});
+
+/* ============================================================
+   14. Environment animation (deterministic in simTime),
+       bench exposure, main loop
+   ============================================================ */
+function animateEnvironment(t){
+  // candle flicker — pure function of time, fully deterministic
+  const f = 1 + 0.16*Math.sin(t*12.7) + 0.10*Math.sin(t*23.3 + 1.7) + 0.06*Math.sin(t*5.3 + 0.4);
+  candleLight.intensity = 26*f;
+  flameOuter.scale.set(1 + 0.10*Math.sin(t*17.1), 2.05 + 0.30*Math.sin(t*12.7 + 0.6), 1);
+  flameInner.scale.set(1, 2.1 + 0.34*Math.sin(t*15.3 + 1.1), 1);
+  flameGlow.material.opacity = 0.62 + 0.3*f*0.5;
+  glowFill.intensity = 3.4 + 1.4*f;
+  // globe's patient rotation
+  globeSphere.rotation.y = t*0.055;
+  // dust drift + sway
+  const posAttr = dustGeo.attributes.position;
+  for(let i=0;i<MOTES;i++){
+    const by = moteBase[i*3+1] - ((t*moteSpeed[i]) % 3.8);
+    const wrapped = by < 0.25 ? by + 3.8 : by;
+    posAttr.array[i*3+0] = moteBase[i*3+0] + Math.sin(t*0.5 + motePhase[i])*0.09;
+    posAttr.array[i*3+1] = wrapped;
+    posAttr.array[i*3+2] = moteBase[i*3+2] + Math.cos(t*0.42 + motePhase[i]*1.7)*0.07;
+  }
+  posAttr.needsUpdate = true;
+}
+
+window.__bench = { grains: N, grainsTop: N, grainsBottom: 0, flips: 0 };
+function updateBench(){
+  let top = 0;
+  for(let i=0;i<N;i++) if(py[i] > 0) top++;
+  window.__bench.grains = N;
+  window.__bench.grainsTop = top;
+  window.__bench.grainsBottom = N - top;
+  window.__bench.flips = flipsDone;
+}
+
+const clock = new THREE.Clock();
+let physAcc = 0;
+
+function frame(){
+  requestAnimationFrame(frame);
+  const dtReal = Math.min(clock.getDelta(), 0.05);
+
+  if(recordMode){
+    // incremental, fixed-step playback of the showcase timeline
+    showTime = Math.min(showTime + dtReal, SHOWCASE_DURATION);
+    stepSimulationTo(showTime);
+    tiltGroup.rotation.set(0,0,0);
+    applyTimeline(showTime);
+    updateGrainInstances();
+    animateEnvironment(simTime);
+    composer.render();
+    updateBench();
+    if(showTime >= SHOWCASE_DURATION && mediaRecorder && mediaRecorder.state !== 'inactive'){
+      mediaRecorder.stop();
+    }
+    return;
+  }
+
+  // interactive mode — fixed-step physics with accumulator
+  physAcc += dtReal;
+  let sub = 0;
+  while(physAcc >= FIXED_H && sub < 5){
+    physicsStep(FIXED_H);
+    physAcc -= FIXED_H;
+    sub++;
+  }
+  if(sub === 5) physAcc = 0;
+
+  // tilt spring
+  const k = 1 - Math.exp(-6.5*dtReal);
+  tiltX += (tiltXT - tiltX)*k;
+  tiltZ += (tiltZT - tiltZ)*k;
+  tiltGroup.rotation.x = tiltX;
+  tiltGroup.rotation.z = tiltZ;
+
+  controls.update();
+  updateGrainInstances();
+  animateEnvironment(simTime);
+  composer.render();
+  updateBench();
+}
+frame();
+
+/* ============================================================
+   15. Resize
+   ============================================================ */
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+});
+</script>
+</body>
+</html>
+

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Horizon — Supermassive Black Hole</title>
+<style>
+  :root{
+    --gold:#f2c063;
+    --gold-dim:rgba(242,192,99,.35);
+    --cyan:#8fd8ff;
+    --panel:rgba(8,12,22,.62);
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html,body{ width:100%; height:100%; overflow:hidden; background:#04060c;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:#dfe7f5; }
+  #scene-canvas{ display:block; width:100%; height:100%; cursor:grab; }
+  #scene-canvas:active{ cursor:grabbing; }
+
+  /* Cinematic vignette + subtle top glow (CSS layer, shader does its own) */
+  #vignette{ position:fixed; inset:0; pointer-events:none; z-index:5;
+    background:radial-gradient(ellipse at 50% 42%, transparent 52%, rgba(0,0,0,.38) 82%, rgba(0,0,0,.72) 100%); }
+
+  .panel{ position:fixed; z-index:10; background:var(--panel);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border:1px solid var(--gold-dim); border-radius:14px;
+    box-shadow:0 8px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06); }
+
+  /* Title block */
+  #title{ top:22px; left:24px; padding:16px 20px 15px; max-width:380px; }
+  #title .kicker{ font-size:10px; letter-spacing:.32em; text-transform:uppercase; color:var(--cyan); opacity:.9; margin-bottom:6px; }
+  #title h1{ font-size:21px; font-weight:650; letter-spacing:.14em; text-transform:uppercase;
+    color:#fdf3dd; line-height:1.25; text-shadow:0 0 18px rgba(242,192,99,.45); }
+  #title p{ margin-top:8px; font-size:11.5px; line-height:1.5; color:#a9b6cf; }
+  #title .swatches{ display:flex; gap:6px; margin-top:10px; }
+  .sw{ height:5px; border-radius:3px; }
+
+  /* HUD bottom-left */
+  #hud{ left:24px; bottom:22px; padding:14px 16px; min-width:250px; }
+  #hud .chips{ display:flex; gap:8px; margin-bottom:10px; }
+  .chip{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; padding:5px 10px;
+    border-radius:999px; border:1px solid rgba(143,216,255,.35); color:var(--cyan);
+    background:rgba(143,216,255,.06); transition:all .25s; display:flex; align-items:center; gap:6px; }
+  .chip .dot{ width:6px; height:6px; border-radius:50%; background:#57ffb0; box-shadow:0 0 8px #57ffb0; }
+  .chip.off{ border-color:rgba(255,110,110,.4); color:#ff9a9a; background:rgba(255,110,110,.05); }
+  .chip.off .dot{ background:#ff6e6e; box-shadow:0 0 8px #ff6e6e; }
+  #hud .keys{ display:grid; grid-template-columns:auto 1fr; gap:4px 12px; font-size:11px; color:#c7d2e8; }
+  kbd{ font-family:ui-monospace,Menlo,monospace; font-size:10px; color:#ffe9b8;
+    background:rgba(255,233,184,.08); border:1px solid rgba(255,233,184,.28); border-bottom-width:2px;
+    border-radius:5px; padding:1px 7px; text-align:center; }
+
+  /* Record button */
+  #record-btn{ position:fixed; z-index:11; top:22px; right:24px; display:flex; align-items:center; gap:12px;
+    padding:12px 20px; border-radius:14px; cursor:pointer; user-select:none;
+    background:linear-gradient(160deg, rgba(48,14,10,.85), rgba(24,8,8,.85));
+    border:1px solid rgba(255,120,90,.5); color:#ffd9c9;
+    box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 10px 34px rgba(255,80,50,.18);
+    transition:transform .15s, box-shadow .25s, border-color .25s; }
+  #record-btn:hover{ transform:translateY(-2px); border-color:#ff8d6b;
+    box-shadow:0 0 0 1px rgba(0,0,0,.4), 0 14px 44px rgba(255,90,55,.3); }
+  #record-btn:active{ transform:translateY(0) scale(.98); }
+  #record-btn .rec-dot{ width:14px; height:14px; border-radius:50%; background:#ff4a33;
+    box-shadow:0 0 12px #ff4a33; animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:.55; transform:scale(.82);} }
+  #record-btn .lbl{ font-size:11px; letter-spacing:.2em; text-transform:uppercase; font-weight:650; }
+  #record-btn .sub{ font-size:9px; color:#c99a86; letter-spacing:.1em; }
+  #record-btn.recording{ border-color:#ff4a33; }
+  #record-btn.recording .lbl{ color:#ffb0a0; }
+
+  /* Bottom-right scale readout */
+  #scale{ position:fixed; z-index:10; right:24px; bottom:22px; text-align:right;
+    font-family:ui-monospace,Menlo,monospace; font-size:10.5px; color:#7f8ca8; line-height:1.8; }
+  #scale b{ color:#f2c063; font-weight:600; }
+
+  @media (max-width:900px){ #title{ display:none; } #scale{ display:none; } }
+html.embed .panel,html.embed #record-btn,html.embed #scale{display:none!important}
+</style>
+</head>
+<body>
+<script>/* early-embed: hide overlays before the scene script runs */ if (new URLSearchParams(location.search).get("orbit")) document.documentElement.classList.add("embed");</script>
+
+<canvas id="scene-canvas"></canvas>
+<div id="vignette"></div>
+
+<div class="panel" id="title">
+  <div class="kicker">Sagittarius A* · Ray-Traced</div>
+  <h1>Event Horizon<br>Supermassive Black Hole</h1>
+  <p>Photons integrated through the Schwarzschild metric in real time. Thin Keplerian
+     accretion disk, blackbody emission, Doppler beaming, gravitational redshift and
+     the full photon ring — rendered per-pixel.</p>
+  <div class="swatches">
+    <div class="sw" style="flex:2; background:linear-gradient(90deg,#3a0d02,#a33c08,#f2a24a,#fff3d6,#cfe4ff);"></div>
+    <div class="sw" style="flex:1; background:linear-gradient(90deg,rgba(143,216,255,0),#8fd8ff);"></div>
+  </div>
+</div>
+
+<div class="panel" id="hud">
+  <div class="chips">
+    <span class="chip" id="chip-lensing"><span class="dot"></span>Lensing</span>
+    <span class="chip" id="chip-doppler"><span class="dot"></span>Doppler</span>
+    <span class="chip" id="chip-tilt"><span class="dot"></span><span id="chip-tilt-val">72°</span></span>
+  </div>
+  <div class="keys">
+    <kbd>drag</kbd><span>Orbit around the hole</span>
+    <kbd>scroll</kbd><span>Zoom 6 → 60 r<sub>s</sub></span>
+    <kbd>L</kbd><span>Toggle gravitational lensing</span>
+    <kbd>D</kbd><span>Toggle Doppler beaming</span>
+    <kbd>[ / ]</kbd><span>Tilt disk inclination</span>
+  </div>
+</div>
+
+<button id="record-btn" title="Play the scripted 12 s showcase and save it as .webm">
+  <span class="rec-dot"></span>
+  <span>
+    <span class="lbl" id="record-label">Record video</span><br>
+    <span class="sub">12s cinematic showcase · .webm</span>
+  </span>
+</button>
+
+<div id="scale">
+  horizon <b>r<sub>s</sub> = 1</b> · photon sphere <b>1.5 r<sub>s</sub></b><br>
+  shadow <b>≈ 2.6 r<sub>s</sub></b> · disk <b>3 – 12 r<sub>s</sub></b>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   EVENT HORIZON — supermassive black hole with real gravitational lensing
+   Schwarzschild null-geodesic integration in a full-screen fragment shader.
+   Units: 1 unit = rs (Schwarzschild radius). M = 0.5.
+   ===================================================================== */
+
+// ---------- Top-level required objects ----------
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('scene-canvas'), antialias: true, powerPreference: 'high-performance' });
+const quadCam  = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);   // internal full-screen pass camera
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 1);
+
+// ---------- State ----------
+let diskTilt   = 1.2566;   // radians from face-on (72°)
+let lensingOn  = true;
+let dopplerOn  = true;
+let diskTime   = 12.0;     // deterministic base phase
+const DISK_SPEED = 1.35;
+let showcaseActive = false;
+let recording      = false;
+
+const INIT_DIST = 26, INIT_AZIM = -0.65, INIT_ELEV = 0.38;
+function placeCamera(dist, azim, elev){
+  const hor = Math.cos(elev) * dist;
+  camera.position.set(Math.sin(azim) * hor, Math.sin(elev) * dist, Math.cos(azim) * hor);
+  camera.lookAt(0, 0, 0);
+}
+placeCamera(INIT_DIST, INIT_AZIM, INIT_ELEV);
+
+// ---------- Controls (OrbitControls drives the shader camera) ----------
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping   = true;
+controls.dampingFactor   = 0.06;
+controls.rotateSpeed     = 0.55;
+controls.zoomSpeed       = 0.85;
+controls.enablePan       = false;
+controls.minDistance     = 6;    // rs
+controls.maxDistance     = 60;   // rs
+controls.update();
+
+// =====================================================================
+//  SHADER
+// =====================================================================
+const vertexShader = /* glsl */`
+  varying vec2 vUv;
+  void main(){
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+const fragmentShader = /* glsl */`
+  precision highp float;
+  varying vec2 vUv;
+
+  uniform vec2  uResolution;
+  uniform vec3  uCamPos;
+  uniform vec3  uCamRight;
+  uniform vec3  uCamUp;
+  uniform vec3  uCamForward;
+  uniform float uTime;
+  uniform float uInclination;   // disk tilt from face-on, radians
+  uniform float uLensing;       // 1 = geodesics, 0 = straight rays
+  uniform float uDoppler;       // 1 = Doppler beaming on
+  uniform float uFov;
+
+  const int   MAX_STEPS = 260;
+  const float HORIZON   = 1.0;  // rs
+  const float DISK_IN   = 3.0;  // rs
+  const float DISK_OUT  = 12.0; // rs
+
+  // ---------- hashing / noise ----------
+  float hash12(vec2 p){
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  vec3 hash33(vec3 p){
+    p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yxz + 33.33);
+    return fract((p.xxy + p.yxx) * p.zyx);
+  }
+  float vnoise(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash12(i);
+    float b = hash12(i + vec2(1.0, 0.0));
+    float c = hash12(i + vec2(0.0, 1.0));
+    float d = hash12(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+  float fbm(vec2 p){
+    float v = 0.0, a = 0.5;
+    mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+    for (int i = 0; i < 5; i++){
+      v += a * vnoise(p);
+      p = rot * p * 2.03 + vec2(11.7, 5.3);
+      a *= 0.55;
+    }
+    return v;
+  }
+
+  // ---------- blackbody ramp (deep red -> orange -> white -> blue-white) ----------
+  vec3 blackbody(float t){
+    t = clamp(t, 0.0, 1.0);
+    vec3 c = mix(vec3(0.50, 0.055, 0.008), vec3(0.92, 0.30, 0.02), smoothstep(0.00, 0.28, t));
+    c = mix(c, vec3(1.06, 0.66, 0.22), smoothstep(0.24, 0.50, t));
+    c = mix(c, vec3(1.06, 0.93, 0.74), smoothstep(0.48, 0.74, t));
+    c = mix(c, vec3(0.80, 0.88, 1.06), smoothstep(0.70, 1.00, t));
+    return c;
+  }
+
+  // ---------- disk frame (tilt about Z axis) ----------
+  vec3 toDiskFrame(vec3 p){
+    float c = cos(uInclination), s = sin(uInclination);
+    return vec3(c * p.x + s * p.y, -s * p.x + c * p.y, p.z);
+  }
+  vec3 fromDiskFrame(vec3 p){
+    float c = cos(uInclination), s = sin(uInclination);
+    return vec3(c * p.x - s * p.y, s * p.x + c * p.y, p.z);
+  }
+  float diskPlaneY(vec3 p){
+    float s = sin(uInclination), c = cos(uInclination);
+    return -s * p.x + c * p.y;
+  }
+
+  // ---------- procedural star layers ----------
+  vec3 starLayer(vec3 dir, float scale, float thresh, float gain){
+    vec3 g  = dir * scale;
+    vec3 id = floor(g);
+    vec3 f  = fract(g) - 0.5;
+    vec3 r  = hash33(id);
+    if (r.x < thresh) return vec3(0.0);
+    vec3 off = (r - 0.5) * 0.72;
+    float d  = length(f - off);
+    float core = smoothstep(0.085, 0.0, d);
+    float halo = smoothstep(0.30, 0.0, d) * 0.30;
+    float tw   = 0.72 + 0.28 * sin(uTime * (1.4 + r.y * 2.2) + r.z * 43.0);
+    float b    = (core + halo) * (0.35 + 0.65 * r.y) * tw * gain;
+    vec3 tint  = mix(vec3(1.0, 0.80, 0.58), vec3(0.70, 0.83, 1.0), r.z);
+    if (r.y > 0.90) tint = vec3(1.0, 0.60, 0.35);   // rare carbon-orange stars
+    return tint * b;
+  }
+
+  // ---------- background: deep sky + galactic band + dust + stars ----------
+  vec3 background(vec3 dir){
+    vec3 col = vec3(0.0055, 0.0085, 0.0165);
+    col += vec3(0.009, 0.012, 0.021) * (0.5 + 0.5 * dir.y);
+
+    // Galactic band
+    vec3 bandN = normalize(vec3(0.35, 0.80, -0.42));
+    float bd    = dot(dir, bandN);
+    float band  = exp(-bd * bd * 16.0);
+    float coreB = exp(-bd * bd * 72.0);
+    float d1 = fbm(dir.xz * 2.6 + dir.yy * 1.8 + vec2(13.1, 7.7));
+    float d2 = fbm(vec2(dir.y * 3.4 - dir.x * 1.6, dir.z * 3.1 + dir.y * 2.2) + vec2(4.7, 9.1));
+    float dust = clamp(d1 * 0.62 + d2 * 0.48, 0.0, 1.0);
+    float lane = smoothstep(0.42, 0.86, dust);
+    vec3 bandCol = mix(vec3(0.155, 0.185, 0.30), vec3(0.60, 0.42, 0.235), coreB);
+    bandCol += vec3(0.34, 0.37, 0.45) * pow(clamp(d2, 0.0, 1.0), 2.0) * 0.7;
+    bandCol *= 1.0 - 0.80 * lane;
+    col += bandCol * band * 0.9;
+
+    // Faint ambient nebula
+    col += vec3(0.10, 0.12, 0.21) * fbm(dir.zy * 1.8 + 31.0) * 0.35;
+    col += vec3(0.14, 0.07, 0.13) * fbm(dir.xy * 2.2 - 17.0) * 0.22;
+
+    // Stars: three depth layers
+    col += starLayer(dir,  55.0, 0.90,  1.05);
+    col += starLayer(dir, 135.0, 0.945, 0.80);
+    col += starLayer(dir, 265.0, 0.970, 0.55);
+    return col;
+  }
+
+  // ---------- accretion disk emission at a crossing point ----------
+  vec3 diskEmission(vec3 hit, out float absorb){
+    vec3 dp = toDiskFrame(hit);
+    float hr = length(dp.xz);
+    float phi = atan(dp.z, dp.x);
+
+    // Keplerian shear: inner material orbits far faster
+    float omega = sqrt(0.5 / (hr * hr * hr));      // M = 0.5
+    float a2 = phi - uTime * omega * 1.35;
+
+    // Turbulent, streaky density field, sheared differentially
+    vec2 sp  = vec2(cos(a2), sin(a2)) * hr * 1.35;
+    float n1 = fbm(sp * 1.30 + vec2(3.7, 8.2));
+    float n2 = fbm(sp * 3.65 - vec2(6.3, 2.9));
+    float n3 = fbm(sp * 7.50 + vec2(9.4, 1.1));
+    float turb = clamp(n1 * 0.58 + n2 * 0.52 + n3 * 0.22, 0.0, 1.35);
+
+    // Temperature profile T ∝ r^(-3/4)
+    float Tn = pow(DISK_IN / hr, 0.75);
+
+    // Orbital velocity v = sqrt(M/r), relativistic gamma
+    vec3 tangentD = normalize(vec3(-dp.z, 0.0, dp.x) + vec3(1e-6, 0.0, 1e-6));
+    vec3 tangentW = fromDiskFrame(tangentD);
+    float beta  = sqrt(0.5 / hr);
+    float gamma = 1.0 / sqrt(1.0 - beta * beta);
+    vec3 toObs  = normalize(uCamPos - hit);
+    float cosT  = dot(tangentW, toObs);
+    float delta = 1.0 / (gamma * (1.0 - beta * cosT));   // Doppler factor
+    if (uDoppler < 0.5) delta = 1.0;
+
+    // Gravitational redshift
+    float gRed = sqrt(max(0.0, 1.0 - 1.0 / hr));
+    float g    = delta * gRed;
+
+    float Teff = clamp(Tn * g * 1.06, 0.0, 1.0);
+
+    // Radial edges + inner rim flare
+    float innerEdge = smoothstep(2.96, 3.35, hr);
+    float outerEdge = 1.0 - smoothstep(10.1, 12.0, hr);
+    float rim       = exp(-max(0.0, hr - DISK_IN) * 1.35);
+
+    float streaks  = 0.42 + 1.2 * turb;
+    float intensity = pow(g, 3.0) * innerEdge * outerEdge * streaks;
+
+    vec3 c = blackbody(Teff) * intensity * (1.35 + 2.6 * rim);
+    // White-hot turbulent sparks on the inner rim
+    c += blackbody(1.0) * rim * pow(max(turb - 0.42, 0.0), 2.0) * 3.2;
+
+    absorb = clamp(0.60 + turb * 0.42, 0.0, 0.93);
+    return c;
+  }
+
+  // ---------- ACES filmic ----------
+  vec3 aces(vec3 x){
+    const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+  }
+
+  void main(){
+    vec2 uv = vUv * 2.0 - 1.0;
+    float aspect = uResolution.x / uResolution.y;
+    float tanFov = tan(uFov * 0.5);
+    vec3 rd = normalize(uCamForward
+                        + uCamRight   * uv.x * aspect * tanFov
+                        + uCamUp      * uv.y * tanFov);
+
+    vec3 p = uCamPos;
+    vec3 hvec = cross(p, rd);
+    float h2  = dot(hvec, hvec);       // conserved |L|^2
+
+    float transmittance = 1.0;
+    vec3  col = vec3(0.0);
+    float rMin = length(p);
+    bool  terminated = false;
+
+    for (int i = 0; i < MAX_STEPS; i++){
+      float r = length(p);
+      rMin = min(rMin, r);
+
+      if (r < HORIZON){ terminated = true; break; }   // captured
+      if (r > 140.0)   { break; }                     // escaped to infinity
+
+      vec3 prev = p;
+      float dt = clamp(0.055 * r, 0.008, 0.5);
+
+      // Exact Schwarzschild null-geodesic bend: a = -3M|h|² r / r^5,  3M = 1.5 rs
+      if (uLensing > 0.5){
+        vec3 acc = -1.5 * h2 * p / pow(r, 5.0);
+        rd += acc * dt;
+      }
+      p += rd * dt;
+
+      // Disk-plane crossing test (thin disk at tilted y = 0 plane)
+      float yA = diskPlaneY(prev);
+      float yB = diskPlaneY(p);
+      if (yA * yB < 0.0){
+        float f = yA / (yA - yB);
+        vec3 hit = mix(prev, p, f);
+        vec3 hd  = toDiskFrame(hit);
+        float hr = length(hd.xz);
+        if (hr > DISK_IN && hr < DISK_OUT){
+          float absorb;
+          vec3 emit = diskEmission(hit, absorb);
+          col += emit * transmittance;
+          transmittance *= (1.0 - absorb);
+          if (transmittance < 0.12){ terminated = true; break; }  // optically thick
+        }
+      }
+    }
+
+    if (!terminated){
+      rd = normalize(rd);
+      vec3 bg = background(rd);
+      col += bg * transmittance;
+
+      // Photon ring: escaping rays that graze the photon sphere (~1.5 rs)
+      if (uLensing > 0.5){
+        float ring = smoothstep(1.95, 1.52, rMin) * smoothstep(1.02, 1.32, rMin);
+        col += vec3(1.18, 0.92, 0.60) * ring * transmittance * 0.85;
+      }
+    }
+
+    col = aces(col * 1.12);
+    col = pow(col, vec3(1.0 / 2.2));
+    col += (hash12(gl_FragCoord.xy + fract(uTime) * 17.0) - 0.5) / 255.0;  // dither
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+const uniforms = {
+  uResolution:  { value: new THREE.Vector2(innerWidth, innerHeight) },
+  uCamPos:      { value: new THREE.Vector3() },
+  uCamRight:    { value: new THREE.Vector3() },
+  uCamUp:       { value: new THREE.Vector3() },
+  uCamForward:  { value: new THREE.Vector3() },
+  uTime:        { value: diskTime },
+  uInclination: { value: diskTilt },
+  uLensing:     { value: 1.0 },
+  uDoppler:     { value: 1.0 },
+  uFov:         { value: camera.fov * Math.PI / 180 }
+};
+
+const quad = new THREE.Mesh(
+  new THREE.PlaneGeometry(2, 2),
+  new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms, depthTest: false, depthWrite: false })
+);
+quad.frustumCulled = false;
+scene.add(quad);
+
+// ---------- Uniform sync from camera state ----------
+const _fwd = new THREE.Vector3();
+function syncUniforms(){
+  camera.updateMatrixWorld();
+  const e = camera.matrixWorld.elements;
+  uniforms.uCamPos.value.copy(camera.position);
+  uniforms.uCamRight.value.set(e[0], e[1], e[2]).normalize();
+  uniforms.uCamUp.value.set(e[4], e[5], e[6]).normalize();
+  camera.getWorldDirection(_fwd);
+  uniforms.uCamForward.value.copy(_fwd);
+  uniforms.uTime.value        = diskTime;
+  uniforms.uInclination.value = diskTilt;
+  uniforms.uLensing.value     = lensingOn  ? 1.0 : 0.0;
+  uniforms.uDoppler.value     = dopplerOn  ? 1.0 : 0.0;
+  uniforms.uResolution.value.set(renderer.domElement.width, renderer.domElement.height);
+}
+
+// =====================================================================
+//  BENCH API
+// =====================================================================
+function updateBench(){
+  window.__bench = {
+    cameraDistance: +camera.position.length().toFixed(3),
+    inclination:    +(diskTilt * 57.295779513).toFixed(2),   // degrees from face-on
+    lensing:        !!lensingOn,
+    doppler:        !!dopplerOn
+  };
+  // HUD chips
+  document.getElementById('chip-lensing').classList.toggle('off', !lensingOn);
+  document.getElementById('chip-doppler').classList.toggle('off', !dopplerOn);
+  document.getElementById('chip-tilt-val').textContent = Math.round(diskTilt * 57.2958) + '°';
+}
+
+// =====================================================================
+//  SHOWCASE — deterministic 12 s scripted cinematic
+// =====================================================================
+const SHOWCASE_DURATION = 12.0;
+const SHOWCASE_KEYS = [
+  // wide establishing — disk & lensing at a glance
+  { t: 0.0,  dist: 34.0, azim: -1.05, elev: 0.50, tilt: 1.05 },
+  { t: 2.3,  dist: 20.0, azim: -0.55, elev: 0.34, tilt: 1.18 },
+  // dolly in toward the shadow
+  { t: 4.6,  dist: 11.0, azim:  0.05, elev: 0.16, tilt: 1.28 },
+  { t: 6.0,  dist:  7.2, azim:  0.62, elev: 0.06, tilt: 1.38 },
+  // grazing shot — photon ring and deep bending
+  { t: 7.6,  dist:  6.4, azim:  1.15, elev: 0.05, tilt: 1.45 },
+  // pull off the axis, Doppler side sweep
+  { t: 9.0,  dist:  8.6, azim:  1.75, elev: 0.30, tilt: 1.15 },
+  // rise high — top-down-ish view of the thin disk
+  { t: 10.6, dist: 13.0, azim:  2.40, elev: 0.66, tilt: 0.78 },
+  // finale — pull back to a wide portrait
+  { t: 12.0, dist: 30.0, azim:  3.15, elev: 0.46, tilt: 1.02 }
+];
+const smooth01 = x => { x = Math.min(Math.max(x, 0), 1); return x * x * (3 - 2 * x); };
+
+function evalShowcase(t){
+  t = Math.min(Math.max(t, 0), SHOWCASE_DURATION);
+  let a = SHOWCASE_KEYS[0], b = SHOWCASE_KEYS[SHOWCASE_KEYS.length - 1];
+  for (let i = 0; i < SHOWCASE_KEYS.length - 1; i++){
+    if (t >= SHOWCASE_KEYS[i].t && t <= SHOWCASE_KEYS[i + 1].t){
+      a = SHOWCASE_KEYS[i]; b = SHOWCASE_KEYS[i + 1]; break;
+    }
+  }
+  const span = Math.max(b.t - a.t, 1e-6);
+  const k = smooth01((t - a.t) / span);
+  return {
+    dist: a.dist + (b.dist - a.dist) * k,
+    azim: a.azim + (b.azim - a.azim) * k,
+    elev: a.elev + (b.elev - a.elev) * k,
+    tilt: a.tilt + (b.tilt - a.tilt) * k,
+    // scripted "simulation events": lensing A/B, then Doppler A/B
+    lensing: !(t >= 5.5 && t < 7.1),
+    doppler: !(t >= 8.1 && t < 9.3)
+  };
+}
+
+function seek(t){
+  t = Math.min(Math.max(t, 0), SHOWCASE_DURATION);
+  const s = evalShowcase(t);
+
+  diskTilt  = s.tilt;
+  lensingOn = s.lensing;
+  dopplerOn = s.doppler;
+  diskTime  = 12.0 + t * DISK_SPEED;          // deterministic disk phase
+
+  const hor = Math.cos(s.elev) * s.dist;
+  camera.position.set(Math.sin(s.azim) * hor, Math.sin(s.elev) * s.dist, Math.cos(s.azim) * hor);
+  camera.lookAt(0, 0, 0);
+  controls.target.set(0, 0, 0);
+  controls.update();                           // keep OrbitControls in sync
+
+  syncUniforms();
+  updateBench();
+  renderer.render(scene, quadCam);
+}
+window.showcase = { duration: SHOWCASE_DURATION, seek };
+
+// =====================================================================
+//  Main loop (interactive mode)
+// =====================================================================
+/* ---------- blog embed (?orbit=1): both black holes are circled from the same angle, in step ----------
+   The camera angle comes from the wall clock, so two iframes stay in step; dragging one turns both. */
+const QS = new URLSearchParams(location.search);
+const ORBIT = QS.get('orbit') ? { dist: +QS.get('dist') || 24, elev: QS.get('elev') !== null ? +QS.get('elev') : 0.3, period: 50, off: 0, still: QS.get('still') !== null ? +QS.get('still') : null } : null;
+let orbitVisible = true;
+if (ORBIT){
+  document.documentElement.classList.add('embed');
+  controls.enabled = false;
+  const ch = 'BroadcastChannel' in window ? new BroadcastChannel('blackhole-orbit') : null;
+  if (ch) ch.onmessage = e => { if (typeof e.data === 'number') ORBIT.off = e.data; };
+  if (matchMedia('(hover:hover) and (pointer:fine)').matches){
+    const el = renderer.domElement; let drag = null; el.style.cursor = 'grab';
+    el.addEventListener('pointerdown', e => { drag = { x: e.clientX, off: ORBIT.off }; el.setPointerCapture(e.pointerId); el.style.cursor = 'grabbing'; });
+    el.addEventListener('pointermove', e => { if (!drag) return; ORBIT.off = drag.off - (e.clientX - drag.x) * 0.008; if (ch) ch.postMessage(ORBIT.off); });
+    const end = () => { drag = null; el.style.cursor = 'grab'; };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+  }
+  if ('IntersectionObserver' in window) new IntersectionObserver(es => { orbitVisible = es[0].isIntersecting; }).observe(document.documentElement);
+}
+function orbitStep(){
+  // ?still=<radians>: a fixed view with no orbit movement (dragging still turns both scenes)
+  const a = ORBIT.off + (ORBIT.still !== null ? ORBIT.still : 0.6 + (Date.now() / 1000 % ORBIT.period) / ORBIT.period * Math.PI * 2);
+  const r = ORBIT.dist * Math.cos(ORBIT.elev);
+  camera.position.set(Math.sin(a) * r, ORBIT.dist * Math.sin(ORBIT.elev), Math.cos(a) * r);
+  camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+}
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  if (showcaseActive) return;                  // recorder drives rendering
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (ORBIT && !orbitVisible) return;
+  diskTime += dt * DISK_SPEED;
+  if (ORBIT) orbitStep(); else controls.update();
+  syncUniforms();
+  updateBench();
+  renderer.render(scene, quadCam);
+}
+animate();
+
+// =====================================================================
+//  Keyboard shortcuts
+// =====================================================================
+addEventListener('keydown', (ev) => {
+  const k = ev.key;
+  if (k === 'l' || k === 'L'){ lensingOn = !lensingOn; }
+  else if (k === 'd' || k === 'D'){ dopplerOn = !dopplerOn; }
+  else if (k === '['){ diskTilt = Math.max(0.15, diskTilt - 0.09); }
+  else if (k === ']'){ diskTilt = Math.min(1.55, diskTilt + 0.09); }
+  else return;
+  ev.preventDefault();
+  syncUniforms();
+  updateBench();
+});
+
+// =====================================================================
+//  Record video button — captures the showcase to .webm
+// =====================================================================
+const recordBtn   = document.getElementById('record-btn');
+const recordLabel = document.getElementById('record-label');
+
+function startRecording(){
+  if (recording) return;
+  recording = true;
+  showcaseActive = true;
+  recordBtn.classList.add('recording');
+  recordLabel.textContent = 'Recording…';
+
+  const stream = renderer.domElement.captureStream(60);
+  let mime = 'video/webm;codecs=vp9';
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 16_000_000 });
+
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const blob = new Blob(chunks, { type: 'video/webm' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'blackhole-showcase.webm';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    recording = false;
+    showcaseActive = false;
+    recordBtn.classList.remove('recording');
+    recordLabel.textContent = 'Record video';
+    clock.getDelta(); // flush stale delta
+  };
+
+  rec.start(100);
+  const startMs = performance.now();
+  function recordFrame(){
+    const t = (performance.now() - startMs) / 1000;
+    if (t >= SHOWCASE_DURATION){
+      seek(SHOWCASE_DURATION);
+      rec.stop();
+      return;
+    }
+    seek(t);
+    requestAnimationFrame(recordFrame);
+  }
+  recordFrame();
+}
+recordBtn.addEventListener('click', startRecording);
+
+// =====================================================================
+//  Resize
+// =====================================================================
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  syncUniforms();
+});
+
+// Initial bench publish
+syncUniforms();
+updateBench();
+</script>
+</body>
+</html>

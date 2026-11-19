@@ -81,6 +81,7 @@ article.content{grid-column:2;padding:0 var(--content-pad)}
 .content a{text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--fg) 25%,transparent);text-underline-offset:2px}
 .content a:hover{text-decoration-color:var(--fg)}
 .content ul{list-style:square;padding-left:1.5rem}.content ol{padding-left:2rem}
+.content .fx-pp-row{padding-left:0}   /* pipeline figures: the first box lines up with the figure's left edge */
 .content li{margin-bottom:.4em}
 .content ul.claims{margin:0 0 1.3em}
 .content ul.claims li{margin-bottom:.7em}
@@ -194,6 +195,77 @@ figcaption b{color:var(--fg2);font-weight:500}
 
 /* Judge tie example */
 .tie-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;max-width:680px;margin:0 auto}
+.tie-scenes .tie-pair{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);max-width:none}
+.tie-scene{aspect-ratio:1/1;border-radius:6px;overflow:hidden;background:#e9dccb;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 7%,transparent)}
+.tie-scene iframe{display:block;width:100%;height:100%;border:0;pointer-events:none}
+.tie-scene-dark{background:#120b07}
+.tie-videos .tie-scene{aspect-ratio:16/9;background:#1c1a17}
+.tie-scene video{display:block;width:100%;height:100%;object-fit:cover}
+/* test-time scaling figure (js/figures/tts.js), on the pipeline figure's boxes */
+.tts{padding-bottom:0}
+.tts-grid{position:absolute;inset:10px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:6px}
+.tts-grid img{width:100%;height:100%;object-fit:cover;border-radius:3px;opacity:0;transform:scale(.9);transition:opacity .35s var(--fx-ease),transform .35s var(--fx-ease)}
+.tts-grid img.in{opacity:1;transform:none}
+.tts-grid.odd img:last-child{grid-column:1/-1;width:calc(50% - 3px);justify-self:center}
+.content .tts-rows,.tts-rows{position:absolute;inset:9px 10px;margin:0;padding:0;list-style:none;display:grid;grid-template-rows:repeat(6,1fr);gap:4px}
+.content .tts-rows li,.tts-rows li{display:grid;grid-template-columns:44px minmax(0,1fr) 32px;align-items:center;justify-items:stretch;gap:8px;min-height:0;margin:0;padding:0}
+.tts-rows img{display:block;width:44px;height:22px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px var(--fx-ring)}
+.tts-bar{height:4px;border-radius:2px;background:color-mix(in srgb,var(--fg) 9%,transparent);overflow:hidden}
+.tts-bar i{display:block;height:100%;width:0;background:var(--fx-jud);border-radius:2px}
+.tts-rows b{font:500 10.5px/1 var(--fx-mono);color:var(--fg3);text-align:right;font-variant-numeric:tabular-nums}
+.tts-rows li.best .tts-bar i{background:var(--fx-ver)}
+.tts-rows li.best b{color:var(--fx-ver);font-weight:700}
+.tts-rows li.best img{box-shadow:0 0 0 1.5px var(--fx-ver)}
+.tts-pick{position:absolute;inset:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.tts-pick img{flex:none;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:4px;box-shadow:0 0 0 2px var(--fx-ver);opacity:0;transform:translateX(-14px);transition:opacity .45s var(--fx-ease),transform .45s var(--fx-ease)}
+.tts-pick img.in{opacity:1;transform:none}
+.tts-pick b{font:700 13px/1 var(--fx-mono);color:var(--fx-ver)}
+@media (max-width:700px){.tts .s-prompt{--bh:66px}.tts .s-code{--bh:112px}.tts .s-cands{--bh:150px}.tts .s-verify{--bh:150px}.tts .s-pick{--bh:110px}}
+/* full-screen button on the live 3D scenes */
+[hidden]{display:none!important}
+.tie-scene,.sv-scene{position:relative}
+.fs-btn{position:absolute;right:10px;bottom:10px;z-index:2;width:34px;height:34px;border-radius:50%;border:0;padding:0;cursor:pointer;display:grid;place-items:center;
+  color:#fff;background:rgba(20,20,20,.42);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:.75;transition:opacity .2s,background .2s}
+.fs-btn:hover,.fs-btn:focus-visible{opacity:1;background:rgba(20,20,20,.62)}
+.fs-btn svg{width:16px;height:16px}
+.tie-scene:fullscreen,.sv-scene:fullscreen{aspect-ratio:auto;width:100vw;height:100vh;border-radius:0}
+.tie-scene:fullscreen iframe,.sv-scene:fullscreen iframe{pointer-events:auto}
+.tie-scene.live-on video{display:none}
+.live-btn{position:absolute;right:10px;bottom:10px;z-index:2;height:34px;padding:0 14px;border:0;border-radius:17px;cursor:pointer;font-family:var(--font-sans);font-size:13px;font-weight:500;color:#fff;background:rgba(20,20,20,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .2s}
+.live-btn:hover,.live-btn:focus-visible{background:rgba(20,20,20,.72)}
+.tie-scene.live-on iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+
+@media (hover:hover) and (pointer:fine){.tie-scene iframe{pointer-events:auto}}
+@media (min-width:1180px){.tie-scenes{margin-left:-120px;margin-right:-120px}}
+@media (min-width:1480px){.tie-scenes{margin-left:-220px;margin-right:-220px}}
+/* 2-by-2 judge-tie figure: a prompt label per row, the judge's score as a badge on each scene, a "tie" chip on the seam */
+.tie-quad .tie-pair{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;position:relative}
+.tie-quad .tie-item{position:relative}
+.tie-quad .tie-scene{border-radius:10px}
+.tie-quad .tie-row-title{font-family:var(--font-serif);font-style:italic;font-size:17px;color:var(--fg2);margin:0 0 10px 2px}
+.tie-quad .tie-pair+.tie-row-title{margin-top:30px}
+.tie-quad .tie-row-title span{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-style:normal;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4);margin-right:10px}
+.tie-quad .tie-score{position:absolute;left:12px;top:12px;margin:0;padding:6px 11px 6px 12px;border-radius:999px;background:rgba(18,18,18,.58);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:rgba(255,255,255,.82);font-size:10.5px;pointer-events:none}
+.tie-quad .tie-score b{color:#fff;font-size:14px;margin-left:6px}
+.tie-quad .tie-eq{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:58px;height:58px;border-radius:50%;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 10%,transparent),0 6px 18px rgba(0,0,0,.18);color:var(--fg);line-height:1;pointer-events:none}
+.tie-quad .tie-eq span{font-size:24px;font-weight:400;margin-top:-3px}
+.tie-quad .tie-eq small{font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg4);margin-top:1px}
+.tie-quad figcaption{margin-top:16px}
+.g3d-thumbs.tie-thumbs{grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.g3d-thumbs.tie-thumbs img{aspect-ratio:648/180}
+#fig-judge-tie{--w:min(100vw - 200px,1200px)}
+/* centre crop: the scene is rendered 16% larger than its box and the edges are clipped */
+#fig-judge-tie .tie-scene:not(:fullscreen) iframe{position:absolute;left:-8%;top:-8%;width:116%;height:116%}
+
+@media (max-width:640px){.tie-quad .tie-pair{grid-template-columns:1fr}.tie-quad.tie-scenes .tie-eq{display:flex;position:relative;left:auto;top:auto;transform:none;margin:-24px auto;width:46px;height:46px}.tie-quad .tie-row-title{font-size:15px}}
+/* the 2-by-2 comparison runs nearly the full window width on desktop (centred on the text column) */
+@media (min-width:1180px){.tie-quad.tie-scenes{--w:min(100vw - 200px,1280px);margin-left:calc((100% - var(--w))/2);margin-right:calc((100% - var(--w))/2)}}
+/* stacked comparison: scene A on top, scene B below, each at the text column's width */
+.tie-stack .tie-pair{grid-template-columns:1fr;gap:6px}
+.tie-stack .tie-eq{display:block;padding-bottom:0;text-align:center;line-height:1}
+@media (min-width:1180px){.tie-stack.tie-scenes{margin-left:0;margin-right:0}}
+.tie-scenes .tie-pair{gap:16px}
+@media (max-width:640px){.tie-scenes .tie-pair{grid-template-columns:1fr}.tie-scenes .tie-eq{display:none}}
 .tie-item img{display:block;width:100%;height:auto;aspect-ratio:1;border-radius:4px;box-shadow:0 0 0 1px color-mix(in srgb,var(--fg) 7%,transparent)}
 .tie-score{display:block;margin-top:8px;text-align:center;font-family:SFMono-Regular,'SF Mono',ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg4)}
 .tie-score b{font-size:13px;color:var(--fg);letter-spacing:0;margin-left:4px}
@@ -314,9 +386,27 @@ footer{margin-top:9rem;padding-bottom:1.75rem;color:var(--fg4);font-family:var(-
 .content .sv-appx figcaption{text-align:center}
 @media (min-width:1180px){.content .sv-appx{margin-left:-120px;margin-right:-120px}}
 @media (max-width:640px){.sv-scene{aspect-ratio:16/9}}
+/* 3D gallery: one live scene, six thumbnails that swap it */
+.content .g3d{max-width:none;padding:0;margin:1.4rem 0 2.6rem}
+@media (min-width:1180px){.content .g3d{margin-left:-120px;margin-right:-120px}}
+.g3d .sv-scene{aspect-ratio:16/9;background:#05070c}
+.g3d-thumbs{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 10px;margin-top:10px;align-items:start}
+.content .g3d .post-cover-caption{max-width:620px;margin:1.3rem auto 0;text-align:center}
+.g3d-thumbs button{display:block;padding:0;border:0;background:none;cursor:pointer;font:inherit;color:var(--fg4);text-align:center}
+.g3d-thumbs img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:4px;opacity:.62;outline:2px solid transparent;outline-offset:2px;transition:opacity .2s,outline-color .2s}
+.g3d-thumbs span{display:block;margin-top:.5rem;font-family:var(--font-sans);font-size:12px;line-height:1.3}
+.g3d-thumbs button:hover img,.g3d-thumbs button:focus-visible img{opacity:1}
+.g3d-thumbs button[aria-pressed="true"] img{opacity:1;outline-color:var(--fg)}
+.g3d-thumbs button[aria-pressed="true"]{color:var(--fg)}
+.g3d-thumbs button:focus-visible{outline:none}
+@media (max-width:520px){.g3d-thumbs{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){.g3d-thumbs img{transition:none}}
 /* the painting cover, now a figure in the Appendix */
 .content .post-cover.tk-cover{max-width:none;padding:0;margin:1.4rem 0 2.6rem}
 .content .post-cover.tk-cover .post-cover-caption{font-size:var(--caption);font-family:var(--font-sans);text-align:center;margin:1rem auto 0;max-width:620px}
+.post-cover-caption .cap-title{font-style:italic;color:var(--fg2)}
+.post-cover-caption .cap-sep{margin:0 .55em;color:var(--fg5)}
+.post-cover-caption a{color:inherit;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 35%,transparent);text-underline-offset:2px}
 @media (min-width:1180px){.content .post-cover.tk-cover{margin-left:-120px;margin-right:-120px}}
 /* ---- Painting cover (Thinking Machines figure style) ---- */
 .post-cover.tk-cover{max-width:min(100%,940px);--pill:#e8e8e6;--pill-fg:#282828;--bg-code:#f3f3f2}
@@ -404,13 +494,13 @@ figure.right-wide{margin-left:0}
   <div class="post-heading">
     <h1 class="post-title">Scaling Self-Verification for Creative Tasks</h1>
     <div class="publish-metadata">
-      <span class="author">Jacky Kwok, Surya Narreddi, Cameron Franz, Neal Wu, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 2, 2026</span>
+      <span class="author">Jacky Kwok, Surya Narreddi, Cameron Franz, Neal Wu, Simon Guo<br>Stanford University in collaboration with Thinking Machines</span><span>Nov 18, 2026</span>
     </div>
   </div>
 
   <div class="post-cover sv-cover" id="sv-cover">
-    <div class="sv-scene"><iframe src="scenes/windmill-polder.html?v=11" title="Animated 3D scene: four Dutch windmills turning in a strong wind beside a canal, with rows of tulips swaying in the foreground." tabindex="-1" scrolling="no"></iframe></div>
-    <p class="post-cover-caption">A windmill polder in a 9 m/s wind, rendered live as a 3D scene.</p>
+    <div class="sv-scene"><iframe src="scenes/windmill-polder.html?v=13" title="Animated 3D scene: four Dutch windmills turning in a strong wind beside a canal, with rows of tulips swaying in the foreground." tabindex="-1" scrolling="no"></iframe></div>
+    <p class="post-cover-caption"><span class="cap-title">Amsterdam Windmills</span><span class="cap-sep" aria-hidden="true">·</span>Generated by Inkling and Self-verified with <a href="https://llm-as-a-verifier.com/">LLM-as-a-Verifier</a></p>
   </div>
 
   <div class="post-content-shell">
@@ -422,51 +512,41 @@ figure.right-wide{margin-left:0}
       <p>A key reason for this disparity lies in the reward signals. In verifiable domains, mathematical solutions can be checked using theorem provers, and code can be evaluated in sandboxed environments. In contrast, creative tasks involve subjective qualities such as aesthetics, which lack clear ground-truth answers and are inherently difficult to evaluate. While standard LLM-as-a-Judge approaches can be used here, they often suffer from coarse-grained scoring, which provides limited signals for learning and selection.</p>
       <p>In this blog, we explore how LLM-as-a-Verifier, a verification scaling framework, can improve the effectiveness of test-time scaling and RL in non-verifiable domains, using 3D modeling and painting as case studies. We validate this in the strictest setting, self-verification, using Inkling as both generator and verifier.</p>
 
-      <h2 id="paintings-over-rl-training">Painting Quality over RL training</h2>
-      <figure class="demo-grid" id="fig-painting-rl-demos">
-          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>0</span><span>200</span><span>400</span><span>800</span></div></div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">pear on table</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/ochre-pear-iter1.jpg" alt="pear on table, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter2.jpg" alt="pear on table, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter3.jpg" alt="pear on table, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter4.jpg" alt="pear on table, step 800" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">mountain at dawn</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/mountain-dawn-iter1.jpg" alt="mountain at dawn, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter2.jpg" alt="mountain at dawn, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter3.jpg" alt="mountain at dawn, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter4.jpg" alt="mountain at dawn, step 800" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row">
-            <div class="demo-head"><span class="demo-subject">violet daisy</span></div>
-            <div class="demo-frames"><figure class="iter"><img src="demos/violet-daisy-iter1.jpg" alt="violet daisy, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter2.jpg" alt="violet daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter3.jpg" alt="violet daisy, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter4.jpg" alt="violet daisy, step 800" width="420" height="420" loading="lazy"></figure></div>
-          </div>
-          <div class="demo-row demo-chart-row">
-            <div class="demo-head"><span class="demo-subject">verifier vs. judge</span></div>
-            <div class="chart" id="v3-chart"></div>
-          </div>
-        <figcaption><b>Top:</b> paintings at steps 0, 200, 400 and 800 of RL training using LLM-as-a-Verifier as reward; more examples are in the <a href="#appendix">Appendix</a>. <b>Bottom:</b> Held-out scores throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the mean scores assigned by DeepSeek-V4.1-Flash to 250 samples across three seeds. By step 800, the verifier achieves an 8% absolute improvement over the judge (0.765 vs. 0.686).</figcaption>
-      </figure>
-
       <h2 id="limitations-of-llm-as-a-judge">Limitations of LLM-as-a-Judge</h2>
-      <p>A common approach to RL in non-verifiable domains is to use an LLM-as-a-Judge to provide reward signals. However, standard LLM judges often suffer from coarse-grained scoring, making it difficult to distinguish between outputs of similar quality. For example, when evaluating three paintings, an LLM judge may assign all of them a score of 5, resulting in a tie despite meaningful differences in their aesthetic quality.</p>
+      <p>A common approach to evaluate non-verifiable tasks is to use an LLM-as-a-Judge to provide feedback. However, standard LLM judges often suffer from coarse-grained scoring, making it difficult to distinguish between outputs of similar quality.</p>
+      <p>For example, when comparing two 3D scenes, an LLM judge may assign both of them a perfect score of 10, resulting in a tie despite meaningful differences in their aesthetic quality. In the two medieval villages below, the first is a dense cluster of half-timbered houses around a church, a windmill and a market street, set beside a pond and ringed by a pine forest in warm, hazy golden-hour light. The second scatters a handful of houses across a flat green plain, and its light is so overexposed that the church and several roofs wash out to white.</p>
 
-      <figure class="tie-fig" id="fig-judge-tie">
+      <figure class="tie-fig tie-scenes tie-videos tie-quad" id="fig-judge-tie">
+        <div class="tie-row-title"><span>Prompt</span>medieval village</div>
         <div class="tie-pair">
-          <div class="tie-item"><img src="demos/grape-tie-3.webp?v=stem" alt="A bunch of distinct violet watercolor grapes with a green leaf, hanging from a vine over a soft lavender wash background" width="384" height="384" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
-          <div class="tie-eq" aria-hidden="true">=</div>
-          <div class="tie-item"><img src="demos/grape-tie-2.webp" alt="A dense cluster of overlapping violet and blue watercolor grapes with a small green leaf" width="384" height="384" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
-          <div class="tie-eq" aria-hidden="true">=</div>
-          <div class="tie-item"><img src="demos/grape-tie-1.webp" alt="A hanging bunch of large, translucent violet grape circles with thin gold outlines on a thin stem" width="384" height="384" loading="lazy"><span class="tie-score">Judge score <b>5</b></span></div>
+          <div class="tie-item"><div class="tie-scene"><iframe data-src="scenes/village-a-live.html?v=3&amp;orbit=1" title="Live 3D scene A: a medieval village at golden hour, with half-timbered houses, a church, a windmill, a market street, a pond and a pine forest in warm haze. The camera slowly circles the village." tabindex="-1" scrolling="no" loading="lazy"></iframe></div><span class="tie-score">Judge score <b>10</b></span></div>
+          <div class="tie-eq" aria-hidden="true"><span>=</span><small>tie</small></div>
+          <div class="tie-item"><div class="tie-scene"><iframe data-src="scenes/village-b-live.html?v=2&amp;orbit=1" title="Live 3D scene B: a medieval village at golden hour on a flat green plain, with scattered houses and a church washed out by overexposed light. The camera slowly circles the village." tabindex="-1" scrolling="no" loading="lazy"></iframe></div><span class="tie-score">Judge score <b>10</b></span></div>
         </div>
-        <figcaption>An LLM judge gives all three paintings the same score of 5, a three-way tie, despite clear differences in their aesthetic quality.</figcaption>
-      </figure>
+        <div class="tie-row-title" hidden><span>Prompt</span>black hole</div>
+        <div class="tie-pair" hidden>
+          <div class="tie-item"><div class="tie-scene"><iframe data-src="scenes/black-hole-a-live.html?v=6&amp;orbit=1&amp;still=1.7" title="Live 3D scene A: a ray-traced black hole with a lensed accretion disk." tabindex="-1" scrolling="no" loading="lazy"></iframe></div><span class="tie-score">Judge score <b>9</b></span></div>
+          <div class="tie-eq" aria-hidden="true"><span>=</span><small>tie</small></div>
+          <div class="tie-item"><div class="tie-scene"><iframe data-src="scenes/black-hole-b-live.html?v=5&amp;orbit=1&amp;still=0.05&amp;dist=26&amp;elev=0.38" title="Live 3D scene B: another ray-traced black hole with an accretion disk, from a different sample of the same prompt." tabindex="-1" scrolling="no" loading="lazy"></iframe></div><span class="tie-score">Judge score <b>9</b></span></div>
+        </div>
+        <div class="tie-row-title" hidden><span>Prompt</span>rooftop garden</div>
+        <div class="tie-pair" hidden>
+          <div class="tie-item"><div class="tie-scene"><iframe data-src="scenes/rooftop-garden-a-live.html?v=5&amp;orbit=1&amp;a0=5.4" title="Live 3D scene A: a rooftop garden in late-afternoon light, with a pergola, raised vegetable beds, a greenhouse, a water tower and string lights. The camera slowly circles the roof." tabindex="-1" scrolling="no" loading="lazy"></iframe></div><span class="tie-score">Judge score <b>9</b></span></div>
+          <div class="tie-eq" aria-hidden="true"><span>=</span><small>tie</small></div>
+          <div class="tie-item"><div class="tie-scene"><iframe data-src="scenes/rooftop-garden-b-live.html?v=5&amp;orbit=1&amp;a0=5.4" title="Live 3D scene B: a sparer rooftop garden in late-afternoon light, with a pergola, a few planters, a table and chairs, a glass cold frame and a water tower. The camera slowly circles the roof." tabindex="-1" scrolling="no" loading="lazy"></iframe></div><span class="tie-score">Judge score <b>9</b></span></div>
+        </div>
+        <div class="g3d-thumbs tie-thumbs" role="group" aria-label="Choose an example"><button type="button" data-ex="0" aria-pressed="true"><img src="demos/tie-village.jpg" alt="" width="648" height="180" loading="lazy"><span>Medieval village</span></button><button type="button" data-ex="1" aria-pressed="false"><img src="demos/tie-black-hole.jpg" alt="" width="648" height="180" loading="lazy"><span>Black hole</span></button><button type="button" data-ex="2" aria-pressed="false"><img src="demos/tie-rooftop-garden.jpg" alt="" width="648" height="180" loading="lazy"><span>Rooftop garden</span></button></div>
+        <figcaption>Two scenes generated by Inkling for the same prompt. An LLM judge gives both the same score, a tie, despite clear differences in their aesthetic quality. Pick an example, then drag either scene to turn both.</figure>
 
-      <p>We also observe that this tie rate increases as RL training progresses, as the model produces increasingly competitive outputs that become harder to distinguish using discrete scores. The tie rate rises from 33% over the first 50 steps to about 61% by step 800.</p>
+      <p>We also observe that the tie rate increases as RL training progresses, as the model produces increasingly competitive outputs that become harder to distinguish using discrete scores. In our RL training runs on paintings, the tie rate rises from 33% over the first 50 steps to about 61% by step 800.</p>
 
       <figure id="fig-tie-rate">
         <div class="chart" id="tie-chart"></div>
-        <figcaption>Tie rate throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the share of rollout groups whose top score is tied, smoothed over 20 steps. The judge's tie rate rises to about 61% by step 800, while the verifier never ties.</figcaption>
+        <figcaption>Tie rate throughout RL training on paintings with LLM-as-a-Judge as the reward signal. We report the share of rollout groups whose top score is tied. The tie rate rises to about 61% by step 800.</figcaption>
       </figure>
 
       <h2 id="how-does-llm-as-a-verifier-work">How does LLM-as-a-Verifier work?</h2>
-      <p>Given a painting prompt \(x\), a model \(p_\theta\), a criterion \(c\), and two candidate paintings \(\tau_i\) and \(\tau_j\) rendered from the policy's sketches, we construct scoring prompts and obtain their conditional distributions \(p_{\theta}(v \mid x,c,\tau_i)\) and \(p_{\theta}(v \mid x, c, \tau_j)\) by extracting the logprobs from <code class="score-tag">&lt;score_A&gt;</code> and <code class="score-tag">&lt;score_B&gt;</code> tags using the following prompt:</p>
+      <p>Given a prompt \(x\), a model \(p_\theta\), a criterion \(c\), and two candidate outputs \(\tau_i\) and \(\tau_j\) (paintings or 3D scenes rendered from the model's code), we construct scoring prompts and obtain their conditional distributions \(p_{\theta}(v \mid x,c,\tau_i)\) and \(p_{\theta}(v \mid x, c, \tau_j)\) by extracting the logprobs from <code class="score-tag">&lt;score_A&gt;</code> and <code class="score-tag">&lt;score_B&gt;</code> tags. For paintings, we use the following prompt; the prompt for 3D scenes is analogous:</p>
       <pre class="prompt-box">You are an expert watercolor reviewer. You will see a painting prompt and two paintings.
 
 Evaluation Criterion: <span class="ph">{criterion}</span>
@@ -480,11 +560,23 @@ Carefully analyze each painting, then provide your final scores:
 &lt;score_B&gt; <span class="ph">SCORE_1_TO_20</span> &lt;/score_B&gt;
 
 Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = poor, 10 = acceptable, 20 = excellent)</pre>
-      <p>Rather than collapsing each distribution to a single discrete score, we approximate the reward of a painting as:</p>
+      <p>Rather than collapsing each distribution to a single discrete score, we approximate the reward of an output as:</p>
       <div class="eq-box">\[ R(x, \tau) = \frac{1}{CK} \sum_{c=1}^{C} \sum_{k=1}^{K} \sum_{g=1}^{G} p_{\theta}(v_g \mid x, c, \tau)\,\phi(v_g) \]</div>
       <p>where \(C\) is the number of evaluation criteria, \(K\) is the number of repeated verifications, \(G\) is the number of score tokens (granularity level), \(p_{\theta}(v_g \mid x, c, \tau)\) is the probability assigned by model \(\theta\) to score token \(v_g\), and \(\phi(v_g)\) maps each score token to a scalar value. See <a href="https://llm-as-a-verifier.com/" target="_blank" rel="noopener">LLM-as-a-Verifier</a> for more details.</p>
 
-      <h2 id="rl-training-pipeline">RL Training Pipeline</h2>
+      <h2 id="test-time-scaling">Self-Verification at Test Time</h2>
+      <p>The same verifier can also be used at test time. Inkling-Small 2 generates several candidate 3D scenes for a prompt, scores them with LLM-as-a-Verifier, and keeps the highest-scoring one. Because the verifier's scores are fine-grained, it can rank candidates that an LLM judge would score identically, and selecting with it improves the quality of the final outputs by 1.3×.</p>
+      <figure class="fx fx-wide" id="fig-tts">
+        <div class="fx-pipe" id="fx-tts"></div>
+        <figcaption>Test-time scaling with self-verification. Inkling-Small 2 generates six candidate scenes for the prompt, renders each in a browser and records a video of it, scores each with LLM-as-a-Verifier, and selects the highest-scoring one for the user.</figcaption>
+      </figure>
+      <figure class="post-cover sv-cover sv-appx" id="fig-tts-selected">
+        <div class="sv-scene sv-scene-dark"><iframe src="scenes/gallery-black-hole.html?v=4" title="Animated 3D scene: a ray-traced black hole whose accretion disk is bent around it by gravitational lensing." tabindex="-1" scrolling="no" loading="lazy"></iframe></div>
+        <p class="post-cover-caption"><span class="cap-title">Black Hole Lensing</span><span class="cap-sep" aria-hidden="true">·</span>Selected by <a href="https://llm-as-a-verifier.com/">LLM-as-a-Verifier</a>, ray-traced live in the browser</p>
+      </figure>
+
+      <h2 id="rl-training">Self-Verification for RL Training</h2>
+      <h3 id="rl-training-pipeline">Training Pipeline</h3>
       <p>Given a text prompt (e.g., “a pear in watercolor”), Inkling-Small generates a JavaScript sketch using the p5.brush library. The sketch is executed in a sandboxed Puppeteer environment to produce a rendered PNG image. The resulting painting is then evaluated by the same model, Inkling-Small, through LLM-as-a-Verifier, which assigns fine-grained scores to assess its visual quality and alignment with the input prompt. These scores are normalized within each group and used to optimize the model via GRPO.</p>
 
       <figure class="fx fx-wide" id="fig-pipeline">
@@ -494,8 +586,24 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 
       <p>As a baseline, we replace the verifier with the standard LLM-as-a-Judge, which scores each painting separately on a discrete scale. Everything else in the pipeline stays the same. The fine-grained verifier score improves sample efficiency by 1.23–1.69× on painting, depending on the target score (see <a href="#painting-results">Results</a>).</p>
 
+      <h3 id="painting-results">Results</h3>
+      <figure class="demo-grid" id="fig-painting-rl-demos"><span id="paintings-over-rl-training"></span>
+          <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>0</span><span>200</span><span>400</span><span>800</span></div></div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">pear on table</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/ochre-pear-iter1.jpg" alt="pear on table, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter2.jpg" alt="pear on table, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter3.jpg" alt="pear on table, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/ochre-pear-iter4.jpg" alt="pear on table, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">violet daisy</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/violet-daisy-iter1.jpg" alt="violet daisy, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter2.jpg" alt="violet daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter3.jpg" alt="violet daisy, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/violet-daisy-iter4.jpg" alt="violet daisy, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
+          <div class="demo-row demo-chart-row">
+            <div class="demo-head"><span class="demo-subject">verifier vs. judge</span></div>
+            <div class="chart" id="v3-chart"></div>
+          </div>
+        <figcaption><b>Top:</b> paintings at steps 0, 200, 400 and 800 of RL training using LLM-as-a-Verifier as reward; more examples are in the <a href="#appendix">Appendix</a>. <b>Bottom:</b> Held-out scores throughout training using LLM-as-a-Verifier versus LLM-as-a-Judge as the reward signal. We report the mean scores assigned by DeepSeek-V4.1-Flash to 250 samples across three seeds. By step 800, the verifier achieves an 8% absolute improvement over the judge (0.765 vs. 0.686).</figcaption>
+      </figure>
 
-      <h2 id="painting-results">Results</h2>
       <p>To quantify the sample efficiency gains from LLM-as-a-Verifier, we compare the number of RL training steps required to reach different target held-out scores. Across all three thresholds, LLM-as-a-Verifier consistently outperforms the standard LLM-as-a-Judge, reaching the same painting quality in fewer training steps. The verifier reaches a score of 0.60 in 175 steps, compared to 215 steps for the judge (1.23×); 0.65 in 260 steps, compared to 400 (1.54×); and 0.68 in 360 steps, compared to 610 (1.69×). The gap widens as the target rises, from 40 steps saved at 0.60 to 250 steps saved at 0.68. These results demonstrate that fine-grained verification provides more effective reward signals, enabling faster and more efficient RL training in creative domains.</p>
 
       <div class="table-wrap" id="tbl-sample-efficiency">
@@ -507,6 +615,7 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
         </table>
       </div>
 
+      <p>LLM-as-a-Verifier also eliminates the scoring ties that limit the judge. While the judge's tie rate climbs from 33% to about 61% over 800 steps of training, the verifier produces no tied top scores at any point in training, so every rollout group keeps a clear ranking for the reward signal.</p>
 
       <h2 id="painting-conclusion">Conclusion</h2>
       <p>In this work, we demonstrate that <strong>scaling verification can make reinforcement learning more effective in creative, non-verifiable domains</strong>, using watercolor painting as a case study. Even in the challenging setting of self-verification, where Inkling-Small serves as both the generator and verifier, LLM-as-a-Verifier provides more informative reward signals than conventional LLM-as-a-Judge approaches.</p>
@@ -515,12 +624,10 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 
       <h2 id="citation">Citation</h2>
       <p>Please cite this work as:</p>
-      <p>Kwok, Jacky, Surya Narreddi, Cameron Franz, Neal Wu and Simon Guo, “Scaling Self-Verification for Creative Tasks”, Thinking Machines Lab: Connectionism, Nov 2026.</p>
-      <p>BibTeX:</p>
       <div class="cite" id="cite"><button class="copy" onclick="copyCite(this)">Copy</button>@article{kwok2026creative,
   author = {Kwok, Jacky and Narreddi, Surya and Franz, Cameron and Wu, Neal and Guo, Simon},
   title = {Scaling Self-Verification for Creative Tasks},
-  journal = {Thinking Machines Lab: Connectionism},
+  journal = {Thinking Machines Lab: News},
   year = {2026},
   month = {Nov}
 }</div>
@@ -536,10 +643,17 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 }</div>
 
       <h2 id="appendix">Appendix</h2>
-      <figure class="post-cover sv-cover sv-appx">
-        <div class="sv-scene sv-scene-dark"><iframe src="scenes/galaxy-merger.html?v=4" title="Animated 3D scene: the end of a galactic merger. Two clouds of tens of thousands of stars drift against a dark sky, each trailing a thin bright streak." tabindex="-1" scrolling="no" loading="lazy"></iframe></div>
-        <figcaption>The end of a galactic merger, with 80,000 stars simulated live in the browser.</figcaption>
+      <figure class="post-cover sv-cover sv-appx" id="fig-tts-tower" hidden>
+        <div class="sv-scene sv-scene-dark"><iframe data-src="scenes/bayside-tower.html?v=2" title="Animated 3D scene: a waterfront tower in Miami at night. A neon script logo is drawn across its facade by a light pen, then animates, while trains, traffic and boats move around the bay." tabindex="-1" scrolling="no" loading="lazy"></iframe></div>
+        <figcaption><i>Bayside Tower</i>, another 3D scene generated by Inkling and selected by Inkling as its own verifier, rendered live in the browser.</figcaption>
       </figure>
+      <h3 id="3d-gallery">3D Gallery</h3>
+      <figure class="g3d" id="fig-3d-gallery">
+        <div class="sv-scene"><iframe data-src="scenes/gallery-bamboo-forest.html?v=3" title="Interactive 3D scene: a misty bamboo forest swaying in the wind, with shafts of light on a stone path." tabindex="-1" scrolling="no"></iframe></div>
+        <div class="g3d-thumbs" role="group" aria-label="Choose a 3D scene"><button type="button" data-scene="scenes/gallery-bamboo-forest.html?v=3" data-title="Misty Bamboo Forest" data-desc="Interactive 3D scene: a misty bamboo forest swaying in the wind, with shafts of light on a stone path." aria-pressed="true"><img src="demos/gallery-bamboo-forest.jpg?v=3" alt="" width="640" height="360" loading="lazy"><span>Misty Bamboo Forest</span></button><button type="button" data-scene="scenes/gallery-black-hole.html?v=4" data-title="Black Hole Lensing" data-desc="Interactive 3D scene: a black hole with an accretion disk, bent by gravitational lensing." aria-pressed="false"><img src="demos/gallery-black-hole.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>Black Hole Lensing</span></button><button type="button" data-scene="scenes/gallery-city-traffic.html?v=2" data-title="City Traffic at Night" data-desc="Interactive 3D scene: a city at night with traffic moving between lit towers." aria-pressed="false"><img src="demos/gallery-city-traffic.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>City Traffic at Night</span></button><button type="button" data-scene="scenes/gallery-snow-globe.html?v=2" data-title="Snow Globe on a Windowsill" data-desc="Interactive 3D scene: a snow globe on a windowsill with a miniature winter village inside." aria-pressed="false"><img src="demos/gallery-snow-globe.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>Snow Globe on a Windowsill</span></button><button type="button" data-scene="scenes/gallery-gothic-cathedral.html?v=3" data-title="Gothic Cathedral" data-desc="Interactive 3D scene: the interior of a gothic cathedral lit through stained glass." aria-pressed="false"><img src="demos/gallery-gothic-cathedral.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>Gothic Cathedral</span></button><button type="button" data-scene="scenes/gallery-billiards.html?v=3" data-title="Pool Table" data-desc="Interactive 3D scene: a pool table at the break shot." aria-pressed="false"><img src="demos/gallery-billiards.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>Pool Table</span></button><button type="button" data-scene="scenes/gallery-aurora-tundra.html?v=2" data-title="Aurora over the Tundra" data-desc="Interactive 3D scene: aurora curtains rippling over a snowy tundra at night." aria-pressed="false"><img src="demos/gallery-aurora-tundra.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>Aurora over the Tundra</span></button><button type="button" data-scene="scenes/gallery-sand-hourglass.html?v=2" data-title="Sand Hourglass" data-desc="Interactive 3D scene: an hourglass with sand falling from the upper bulb to the lower." aria-pressed="false"><img src="demos/gallery-sand-hourglass.jpg?v=2" alt="" width="640" height="360" loading="lazy"><span>Sand Hourglass</span></button></div>
+        <p class="post-cover-caption"><span class="cap-title" id="g3d-title">Misty Bamboo Forest</span><span class="cap-sep" aria-hidden="true">·</span>Generated by Inkling and selected by <a href="https://llm-as-a-verifier.com/">LLM-as-a-Verifier</a>. Pick a scene, then drag to look around</p>
+      </figure>
+      <h3 id="painting-gallery">Painting Gallery</h3>
       <div class="post-cover tk-cover">
     <div class="tk-toolbar">
       <div class="tk-pills"><span class="tk-pill" id="tk-step">call 0 / 0</span><span class="tk-pill tk-pill-soft" id="tk-layers">ready</span></div>
@@ -556,6 +670,10 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
   </div>
       <figure class="demo-grid" id="fig-more-paintings">
           <div class="demo-axis" aria-hidden="true"><span class="demo-axis-label">Training step</span><div class="demo-axis-steps"><span>0</span><span>200</span><span>400</span><span>800</span></div></div>
+          <div class="demo-row">
+            <div class="demo-head"><span class="demo-subject">mountain at dawn</span></div>
+            <div class="demo-frames"><figure class="iter"><img src="demos/mountain-dawn-iter1.jpg" alt="mountain at dawn, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter2.jpg" alt="mountain at dawn, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter3.jpg" alt="mountain at dawn, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/mountain-dawn-iter4.jpg" alt="mountain at dawn, step 800" width="420" height="420" loading="lazy"></figure></div>
+          </div>
           <div class="demo-row">
             <div class="demo-head"><span class="demo-subject">crimson daisy</span></div>
             <div class="demo-frames"><figure class="iter"><img src="demos/crimson-daisy-iter1.jpg" alt="crimson daisy, step 0" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter2.jpg" alt="crimson daisy, step 200" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter3.jpg" alt="crimson daisy, step 400" width="420" height="420" loading="lazy"></figure><figure class="iter"><img src="demos/crimson-daisy-iter4.jpg" alt="crimson daisy, step 800" width="420" height="420" loading="lazy"></figure></div>
@@ -622,15 +740,70 @@ Rating Rules: Rate each painting on a 1&ndash;20 scale for the criterion (1 = po
 <script src="flower.js"></script>
 
 <!-- the painter shared by the cover (its stroke worker is js/strokes.js) -->
+<script>
+/* full-screen button for each live 3D scene (the scene inside re-sizes itself on the resize event) */
+(function(){
+  const host = document.documentElement;
+  if(!(host.requestFullscreen || host.webkitRequestFullscreen)) return;
+  const ENTER = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>';
+  const EXIT  = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4"/></svg>';
+  const current = () => document.fullscreenElement || document.webkitFullscreenElement;
+  document.querySelectorAll('.tie-scene, .sv-scene').forEach(box => {
+    if(box.dataset.live) return;                                      // video figures get the single Explore in 3D button below instead
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'fs-btn'; b.innerHTML = ENTER; b.setAttribute('aria-label', 'View full screen'); b.title = 'Full screen';
+    b.addEventListener('click', () => {
+      if(current() === box) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return }
+      if(box.dataset.live && !box.querySelector('iframe')) {           // a video figure: full screen opens the live 3D scene it was recorded from
+        const f = document.createElement('iframe');
+        f.src = box.dataset.live; f.title = 'Live 3D scene'; f.setAttribute('allow', 'fullscreen');
+        box.classList.add('live-on'); box.dataset.fsLive = '1'; box.insertBefore(f, b);
+        f.addEventListener('load', () => { try { f.contentWindow.focus() } catch(e) {} });
+      }
+      (box.requestFullscreen || box.webkitRequestFullscreen).call(box);
+    });
+    box.appendChild(b);
+  });
+  /* video figures: one button. "Explore in 3D" swaps the video for the live scene in place; after that the same button
+     steps the scene's time of day (the scene's own H key, sent to its window) */
+  document.querySelectorAll('.tie-scene[data-live]').forEach(box => {
+    const p = document.createElement('button');
+    p.type = 'button'; p.className = 'live-btn'; p.textContent = 'Explore in 3D';
+    p.addEventListener('click', () => {
+      const f0 = box.querySelector('iframe'), v = box.querySelector('video');
+      if(f0) {
+        try { const w = f0.contentWindow; w.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'h', bubbles: true })) } catch(e) {}
+        return;
+      }
+      const f = document.createElement('iframe');
+      f.src = box.dataset.live; f.title = 'Live 3D scene';
+      box.classList.add('live-on'); box.insertBefore(f, p);
+      if(v) v.pause();
+      p.textContent = 'Change time'; p.setAttribute('aria-label', 'Change the time of day in this scene');
+    });
+    box.appendChild(p);
+  });
+  const sync = () => document.querySelectorAll('.fs-btn').forEach(b => {
+    const box = b.parentElement;
+    if(box.dataset.live && current() !== box && box.dataset.fsLive) {   // left full screen: back to the video (unless the scene was already live in the page)
+      const f = box.querySelector('iframe'); if(f) f.remove(); box.classList.remove('live-on'); delete box.dataset.fsLive;
+    }
+    const on = current() === b.parentElement;
+    b.innerHTML = on ? EXIT : ENTER; b.setAttribute('aria-label', on ? 'Exit full screen' : 'View full screen'); b.title = on ? 'Exit full screen' : 'Full screen';
+  });
+  document.addEventListener('fullscreenchange', sync); document.addEventListener('webkitfullscreenchange', sync);
+})();
+</script>
 <script src="js/painter.js?v=4"></script>
 <script src="js/hero.js?v=5"></script>
 <script src="js/figures/core.js?v=4"></script>
 <script src="js/figures/data.js?v=4"></script>
 <script src="js/figures/pipeline.js?v=4"></script>
+<script src="js/figures/tts.js?v=13"></script>
 
 <script>
 /* ---------- TOC ---------- */
-(function(){const wide=document.querySelectorAll('.demo-grid,figure.fx-wide,figure.right-wide,.content .tk-cover,.content .sv-appx');if(!wide.length||!('IntersectionObserver' in window))return;const on=new Set();const io=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?on.add(e.target):on.delete(e.target));document.body.classList.toggle('toc-hide',on.size>0)},{rootMargin:'-15% 0px -15% 0px'});wide.forEach(f=>io.observe(f))})();
+(function(){const wide=document.querySelectorAll('.demo-grid,figure.fx-wide,figure.right-wide,.content .tk-cover,.content .sv-appx,.tie-scenes');if(!wide.length||!('IntersectionObserver' in window))return;const on=new Set();const io=new IntersectionObserver(es=>{es.forEach(e=>e.isIntersecting?on.add(e.target):on.delete(e.target));document.body.classList.toggle('toc-hide',on.size>0)},{rootMargin:'-15% 0px -15% 0px'});wide.forEach(f=>io.observe(f))})();
 (function(){const ul=document.querySelector('#toc ul');let cur=null;
 const items=[{id:'introduction',text:'Introduction',tag:'H2'},...[...document.querySelectorAll('#article h2, #article h3')].filter(h=>!h.closest('[hidden]')).map(h=>({id:h.id,text:h.textContent,tag:h.tagName}))];
 items.forEach(h=>{const li=document.createElement('li');li.innerHTML=`<a href="#${h.id}">${h.text}</a>`;
@@ -687,11 +860,11 @@ el.addEventListener('mouseleave',()=>tip.style.opacity=0)}
 (function(){
   const el=document.getElementById('tie-chart');if(!el)return;
   const D={"judge":[[0,0.3373],[1,0.3155],[2,0.3122],[3,0.2862],[4,0.2992],[5,0.291],[6,0.2971],[7,0.2877],[8,0.302],[9,0.3135],[10,0.3267],[11,0.3213],[12,0.3379],[13,0.3356],[14,0.3366],[15,0.332],[16,0.337],[17,0.3315],[18,0.3347],[19,0.3412],[20,0.3374],[21,0.3403],[22,0.3497],[23,0.3601],[24,0.3577],[25,0.3543],[26,0.3469],[27,0.3424],[28,0.3343],[29,0.3323],[30,0.3281],[31,0.332],[32,0.3292],[33,0.3306],[34,0.3196],[35,0.3157],[36,0.3115],[37,0.3148],[38,0.316],[39,0.3136],[40,0.314],[41,0.3107],[42,0.3096],[43,0.3064],[44,0.3084],[45,0.3128],[46,0.3255],[47,0.3352],[48,0.3433],[49,0.3412],[50,0.3426],[51,0.3387],[52,0.3354],[53,0.3318],[54,0.3482],[55,0.3647],[56,0.3691],[57,0.3715],[58,0.3674],[59,0.3653],[60,0.3664],[61,0.3717],[62,0.3648],[63,0.366],[64,0.3591],[65,0.3707],[66,0.3633],[67,0.3679],[68,0.3708],[69,0.3729],[70,0.3694],[71,0.3772],[72,0.373],[73,0.3852],[74,0.3769],[75,0.3679],[76,0.3613],[77,0.3729],[78,0.3688],[79,0.3697],[80,0.3696],[81,0.3786],[82,0.3702],[83,0.3682],[84,0.3765],[85,0.3702],[86,0.3702],[87,0.3661],[88,0.3693],[89,0.3631],[90,0.3631],[91,0.3616],[92,0.3554],[93,0.3405],[94,0.3488],[95,0.3583],[96,0.3649],[97,0.3524],[98,0.3565],[99,0.3556],[100,0.3598],[101,0.3417],[102,0.3542],[103,0.3542],[104,0.3417],[105,0.3437],[106,0.3479],[107,0.35],[108,0.3312],[109,0.3396],[110,0.3396],[111,0.3431],[112,0.3515],[113,0.3598],[114,0.3556],[115,0.3524],[116,0.3521],[117,0.3509],[118,0.3571],[119,0.3592],[120,0.3634],[121,0.3696],[122,0.3759],[123,0.3801],[124,0.3946],[125,0.3926],[126,0.3905],[127,0.3988],[128,0.4071],[129,0.4092],[130,0.4113],[131,0.4051],[132,0.4092],[133,0.4155],[134,0.4134],[135,0.4071],[136,0.4071],[137,0.4125],[138,0.4125],[139,0.4042],[140,0.3899],[141,0.3961],[142,0.3815],[143,0.3774],[144,0.3774],[145,0.3795],[146,0.3857],[147,0.3857],[148,0.3836],[149,0.3795],[150,0.3774],[151,0.3836],[152,0.3732],[153,0.369],[154,0.3795],[155,0.3815],[156,0.3878],[157,0.3836],[158,0.3836],[159,0.3857],[160,0.4],[161,0.4104],[162,0.4167],[163,0.4208],[164,0.4188],[165,0.4229],[166,0.4167],[167,0.4083],[168,0.4104],[169,0.4062],[170,0.4167],[171,0.4125],[172,0.4271],[173,0.4271],[174,0.4188],[175,0.4188],[176,0.4104],[177,0.4188],[178,0.4125],[179,0.4146],[180,0.4063],[181,0.3896],[182,0.3896],[183,0.3854],[184,0.3875],[185,0.3854],[186,0.3896],[187,0.3958],[188,0.4042],[189,0.4104],[190,0.4021],[191,0.4146],[192,0.4229],[193,0.4208],[194,0.4187],[195,0.4229],[196,0.4271],[197,0.4167],[198,0.425],[199,0.4354],[200,0.4458],[201,0.45],[202,0.4563],[203,0.4646],[204,0.4771],[205,0.4771],[206,0.4792],[207,0.4771],[208,0.4771],[209,0.4854],[210,0.4875],[211,0.475],[212,0.4625],[213,0.4646],[214,0.4771],[215,0.4813],[216,0.4792],[217,0.4854],[218,0.4896],[219,0.4813],[220,0.4771],[221,0.4833],[222,0.4917],[223,0.4833],[224,0.4792],[225,0.4875],[226,0.4854],[227,0.4854],[228,0.4854],[229,0.4729],[230,0.4708],[231,0.4688],[232,0.4646],[233,0.4708],[234,0.4521],[235,0.4521],[236,0.45],[237,0.4542],[238,0.45],[239,0.45],[240,0.4443],[241,0.4402],[242,0.4318],[243,0.4402],[244,0.436],[245,0.4298],[246,0.4298],[247,0.4318],[248,0.4214],[249,0.4256],[250,0.4277],[251,0.436],[252,0.4444],[253,0.4423],[254,0.4548],[255,0.461],[256,0.4589],[257,0.4548],[258,0.461],[259,0.4652],[260,0.475],[261,0.4792],[262,0.4708],[263,0.4708],[264,0.4688],[265,0.4854],[266,0.4833],[267,0.4875],[268,0.4958],[269,0.4917],[270,0.4896],[271,0.4833],[272,0.4833],[273,0.4854],[274,0.475],[275,0.4625],[276,0.4729],[277,0.4771],[278,0.4667],[279,0.4667],[280,0.4562],[281,0.4542],[282,0.4562],[283,0.4542],[284,0.4604],[285,0.4521],[286,0.4542],[287,0.4479],[288,0.4542],[289,0.4563],[290,0.4583],[291,0.4563],[292,0.4521],[293,0.4458],[294,0.45],[295,0.4479],[296,0.4542],[297,0.4458],[298,0.4542],[299,0.4479],[300,0.4521],[301,0.4479],[302,0.4521],[303,0.4354],[304,0.4417],[305,0.4271],[306,0.4271],[307,0.4271],[308,0.425],[309,0.4312],[310,0.4354],[311,0.4354],[312,0.4375],[313,0.4458],[314,0.4479],[315,0.4542],[316,0.4458],[317,0.4583],[318,0.4479],[319,0.4646],[320,0.4687],[321,0.4729],[322,0.4708],[323,0.4896],[324,0.4875],[325,0.4875],[326,0.4958],[327,0.5042],[328,0.5021],[329,0.4979],[330,0.4979],[331,0.5062],[332,0.5083],[333,0.5104],[334,0.5125],[335,0.5083],[336,0.5],[337,0.4979],[338,0.5],[339,0.4938],[340,0.4917],[341,0.4917],[342,0.5104],[343,0.5146],[344,0.5],[345,0.5021],[346,0.5021],[347,0.4896],[348,0.4917],[349,0.5063],[350,0.5083],[351,0.5083],[352,0.5042],[353,0.4917],[354,0.4979],[355,0.5021],[356,0.5063],[357,0.5125],[358,0.5208],[359,0.525],[360,0.5333],[361,0.5354],[362,0.5271],[363,0.5208],[364,0.5292],[365,0.5301],[366,0.5217],[367,0.5342],[368,0.528],[369,0.5113],[370,0.5155],[371,0.5176],[372,0.5134],[373,0.5176],[374,0.5176],[375,0.5217],[376,0.5217],[377,0.5134],[378,0.5134],[379,0.5071],[380,0.5071],[381,0.503],[382,0.503],[383,0.5051],[384,0.5051],[385,0.5021],[386,0.5021],[387,0.4979],[388,0.5],[389,0.5104],[390,0.4979],[391,0.5042],[392,0.5167],[393,0.5208],[394,0.5125],[395,0.5146],[396,0.5125],[397,0.5188],[398,0.5208],[399,0.5271],[400,0.5292],[401,0.5292],[402,0.5146],[403,0.5208],[404,0.525],[405,0.5396],[406,0.5417],[407,0.5417],[408,0.55],[409,0.5458],[410,0.5583],[411,0.5479],[412,0.5396],[413,0.5375],[414,0.5458],[415,0.5354],[416,0.5458],[417,0.5417],[418,0.5396],[419,0.5354],[420,0.5292],[421,0.5312],[422,0.5333],[423,0.5333],[424,0.5312],[425,0.5312],[426,0.5292],[427,0.5208],[428,0.5083],[429,0.5167],[430,0.5125],[431,0.5104],[432,0.5125],[433,0.5167],[434,0.5125],[435,0.5146],[436,0.5104],[437,0.5051],[438,0.5071],[439,0.5092],[440,0.5134],[441,0.5155],[442,0.5259],[443,0.5113],[444,0.5092],[445,0.4926],[446,0.4988],[447,0.5092],[448,0.5071],[449,0.4988],[450,0.503],[451,0.5155],[452,0.5238],[453,0.5238],[454,0.528],[455,0.5342],[456,0.5259],[457,0.525],[458,0.5229],[459,0.5229],[460,0.5187],[461,0.5104],[462,0.5062],[463,0.5125],[464,0.5125],[465,0.5208],[466,0.5229],[467,0.5125],[468,0.5167],[469,0.5167],[470,0.5083],[471,0.4937],[472,0.4833],[473,0.475],[474,0.4729],[475,0.4667],[476,0.4708],[477,0.4708],[478,0.475],[479,0.4688],[480,0.4729],[481,0.4854],[482,0.4833],[483,0.4813],[484,0.4708],[485,0.4729],[486,0.4729],[487,0.4833],[488,0.4771],[489,0.4833],[490,0.4833],[491,0.4917],[492,0.5021],[493,0.5104],[494,0.5229],[495,0.5208],[496,0.5229],[497,0.5167],[498,0.5104],[499,0.5146],[500,0.5104],[501,0.5021],[502,0.5042],[503,0.5167],[504,0.5188],[505,0.5146],[506,0.5167],[507,0.5167],[508,0.5312],[509,0.5229],[510,0.525],[511,0.5229],[512,0.5042],[513,0.4938],[514,0.4771],[515,0.4854],[516,0.4854],[517,0.5104],[518,0.5083],[519,0.5],[520,0.5021],[521,0.5104],[522,0.5042],[523,0.5083],[524,0.5187],[525,0.5146],[526,0.5083],[527,0.5104],[528,0.5062],[529,0.5104],[530,0.5042],[531,0.5042],[532,0.5167],[533,0.5292],[534,0.5417],[535,0.5375],[536,0.5375],[537,0.525],[538,0.5229],[539,0.5333],[540,0.5333],[541,0.525],[542,0.5208],[543,0.5021],[544,0.4917],[545,0.4979],[546,0.4979],[547,0.4917],[548,0.4813],[549,0.4813],[550,0.4917],[551,0.4833],[552,0.4833],[553,0.4708],[554,0.4583],[555,0.45],[556,0.4417],[557,0.4396],[558,0.4417],[559,0.4313],[560,0.4375],[561,0.4354],[562,0.4479],[563,0.4583],[564,0.4646],[565,0.4583],[566,0.4583],[567,0.4583],[568,0.4771],[569,0.475],[570,0.4833],[571,0.4979],[572,0.5021],[573,0.5063],[574,0.5167],[575,0.5313],[576,0.5417],[577,0.5396],[578,0.5375],[579,0.5521],[580,0.5417],[581,0.5417],[582,0.5437],[583,0.5417],[584,0.5354],[585,0.5375],[586,0.5417],[587,0.5458],[588,0.5417],[589,0.5479],[590,0.5437],[591,0.5437],[592,0.5396],[593,0.55],[594,0.5417],[595,0.5396],[596,0.5417],[597,0.5417],[598,0.5437],[599,0.5354],[600,0.5458],[601,0.5583],[602,0.5625],[603,0.5583],[604,0.5625],[605,0.5563],[606,0.5646],[607,0.5625],[608,0.5583],[609,0.55],[610,0.5479],[611,0.5438],[612,0.5417],[613,0.5292],[614,0.5438],[615,0.5479],[616,0.5458],[617,0.5438],[618,0.5458],[619,0.5521],[620,0.5521],[621,0.55],[622,0.5458],[623,0.5583],[624,0.5708],[625,0.5958],[626,0.5792],[627,0.5771],[628,0.5708],[629,0.575],[630,0.5771],[631,0.5792],[632,0.5875],[633,0.5938],[634,0.5792],[635,0.5688],[636,0.5708],[637,0.5729],[638,0.5687],[639,0.575],[640,0.5646],[641,0.5583],[642,0.5562],[643,0.55],[644,0.5396],[645,0.5292],[646,0.5417],[647,0.5563],[648,0.5667],[649,0.5646],[650,0.5625],[651,0.5583],[652,0.5542],[653,0.5521],[654,0.5542],[655,0.5562],[656,0.5583],[657,0.5646],[658,0.5667],[659,0.5562],[660,0.5604],[661,0.5625],[662,0.5646],[663,0.5625],[664,0.5688],[665,0.5729],[666,0.5646],[667,0.5458],[668,0.5458],[669,0.5396],[670,0.5354],[671,0.5438],[672,0.5417],[673,0.5438],[674,0.5438],[675,0.5417],[676,0.5417],[677,0.5333],[678,0.5354],[679,0.5375],[680,0.5375],[681,0.5458],[682,0.5458],[683,0.5542],[684,0.5479],[685,0.5375],[686,0.5458],[687,0.5563],[688,0.55],[689,0.5583],[690,0.5604],[691,0.5604],[692,0.5646],[693,0.5667],[694,0.575],[695,0.5812],[696,0.5687],[697,0.5687],[698,0.5708],[699,0.5646],[700,0.5583],[701,0.5583],[702,0.5562],[703,0.5521],[704,0.5562],[705,0.5708],[706,0.5646],[707,0.5521],[708,0.5521],[709,0.5542],[710,0.5521],[711,0.5562],[712,0.5479],[713,0.5542],[714,0.5542],[715,0.55],[716,0.5646],[717,0.5625],[718,0.5646],[719,0.5792],[720,0.5896],[721,0.5792],[722,0.5875],[723,0.5958],[724,0.6021],[725,0.5896],[726,0.5958],[727,0.6146],[728,0.6188],[729,0.6208],[730,0.625],[731,0.6125],[732,0.6271],[733,0.6208],[734,0.6146],[735,0.6167],[736,0.6083],[737,0.6187],[738,0.6208],[739,0.6125],[740,0.6104],[741,0.6167],[742,0.6125],[743,0.6021],[744,0.5875],[745,0.5938],[746,0.5875],[747,0.5771],[748,0.5854],[749,0.5792],[750,0.5792],[751,0.5896],[752,0.5771],[753,0.5708],[754,0.5771],[755,0.5854],[756,0.5958],[757,0.5958],[758,0.5917],[759,0.5854],[760,0.5917],[761,0.5917],[762,0.5896],[763,0.5896],[764,0.5958],[765,0.5896],[766,0.5937],[767,0.5937],[768,0.5875],[769,0.5917],[770,0.5854],[771,0.5833],[772,0.5854],[773,0.5917],[774,0.5875],[775,0.5875],[776,0.5771],[777,0.5792],[778,0.5812],[779,0.5854],[780,0.5729],[781,0.575],[782,0.5833],[783,0.5875],[784,0.5896],[785,0.5917],[786,0.6],[787,0.5979],[788,0.5979],[789,0.5875],[790,0.5979],[791,0.5958],[792,0.6],[793,0.6083],[794,0.6042],[795,0.6042],[796,0.6104],[797,0.6083],[798,0.6062],[799,0.6083],[800,0.6104]],"verifier":[[0,0.0],[1,0.0],[2,0.0],[3,0.0],[4,0.0],[5,0.0],[6,0.0],[7,0.0],[8,0.0],[9,0.0],[10,0.0],[11,0.0],[12,0.0],[13,0.0],[14,0.0],[15,0.0],[16,0.0],[17,0.0],[18,0.0],[19,0.0],[20,0.0],[21,0.0],[22,0.0],[23,0.0],[24,0.0],[25,0.0],[26,0.0],[27,0.0],[28,0.0],[29,0.0],[30,0.0],[31,0.0],[32,0.0],[33,0.0],[34,0.0],[35,0.0],[36,0.0],[37,0.0],[38,0.0],[39,0.0],[40,0.0],[41,0.0],[42,0.0],[43,0.0],[44,0.0],[45,0.0],[46,0.0],[47,0.0],[48,0.0],[49,0.0],[50,0.0],[51,0.0],[52,0.0],[53,0.0],[54,0.0],[55,0.0],[56,0.0],[57,0.0],[58,0.0],[59,0.0],[60,0.0],[61,0.0],[62,0.0],[63,0.0],[64,0.0],[65,0.0],[66,0.0],[67,0.0],[68,0.0],[69,0.0],[70,0.0],[71,0.0],[72,0.0],[73,0.0],[74,0.0],[75,0.0],[76,0.0],[77,0.0],[78,0.0],[79,0.0],[80,0.0],[81,0.0],[82,0.0],[83,0.0],[84,0.0],[85,0.0],[86,0.0],[87,0.0],[88,0.0],[89,0.0],[90,0.0],[91,0.0],[92,0.0],[93,0.0],[94,0.0],[95,0.0],[96,0.0],[97,0.0],[98,0.0],[99,0.0],[100,0.0],[101,0.0],[102,0.0],[103,0.0],[104,0.0],[105,0.0],[106,0.0],[107,0.0],[108,0.0],[109,0.0],[110,0.0],[111,0.0],[112,0.0],[113,0.0],[114,0.0],[115,0.0],[116,0.0],[117,0.0],[118,0.0],[119,0.0],[120,0.0],[121,0.0],[122,0.0],[123,0.0],[124,0.0],[125,0.0],[126,0.0],[127,0.0],[128,0.0],[129,0.0],[130,0.0],[131,0.0],[132,0.0],[133,0.0],[134,0.0],[135,0.0],[136,0.0],[137,0.0],[138,0.0],[139,0.0],[140,0.0],[141,0.0],[142,0.0],[143,0.0],[144,0.0],[145,0.0],[146,0.0],[147,0.0],[148,0.0],[149,0.0],[150,0.0],[151,0.0],[152,0.0],[153,0.0],[154,0.0],[155,0.0],[156,0.0],[157,0.0],[158,0.0],[159,0.0],[160,0.0],[161,0.0],[162,0.0],[163,0.0],[164,0.0],[165,0.0],[166,0.0],[167,0.0],[168,0.0],[169,0.0],[170,0.0],[171,0.0],[172,0.0],[173,0.0],[174,0.0],[175,0.0],[176,0.0],[177,0.0],[178,0.0],[179,0.0],[180,0.0],[181,0.0],[182,0.0],[183,0.0],[184,0.0],[185,0.0],[186,0.0],[187,0.0],[188,0.0],[189,0.0],[190,0.0],[191,0.0],[192,0.0],[193,0.0],[194,0.0],[195,0.0],[196,0.0],[197,0.0],[198,0.0],[199,0.0],[200,0.0],[201,0.0],[202,0.0],[203,0.0],[204,0.0],[205,0.0],[206,0.0],[207,0.0],[208,0.0],[209,0.0],[210,0.0],[211,0.0],[212,0.0],[213,0.0],[214,0.0],[215,0.0],[216,0.0],[217,0.0],[218,0.0],[219,0.0],[220,0.0],[221,0.0],[222,0.0],[223,0.0],[224,0.0],[225,0.0],[226,0.0],[227,0.0],[228,0.0],[229,0.0],[230,0.0],[231,0.0],[232,0.0],[233,0.0],[234,0.0],[235,0.0],[236,0.0],[237,0.0],[238,0.0],[239,0.0],[240,0.0],[241,0.0],[242,0.0],[243,0.0],[244,0.0],[245,0.0],[246,0.0],[247,0.0],[248,0.0],[249,0.0],[250,0.0],[251,0.0],[252,0.0],[253,0.0],[254,0.0],[255,0.0],[256,0.0],[257,0.0],[258,0.0],[259,0.0],[260,0.0],[261,0.0],[262,0.0],[263,0.0],[264,0.0],[265,0.0],[266,0.0],[267,0.0],[268,0.0],[269,0.0],[270,0.0],[271,0.0],[272,0.0],[273,0.0],[274,0.0],[275,0.0],[276,0.0],[277,0.0],[278,0.0],[279,0.0],[280,0.0],[281,0.0],[282,0.0],[283,0.0],[284,0.0],[285,0.0],[286,0.0],[287,0.0],[288,0.0],[289,0.0],[290,0.0],[291,0.0],[292,0.0],[293,0.0],[294,0.0],[295,0.0],[296,0.0],[297,0.0],[298,0.0],[299,0.0],[300,0.0],[301,0.0],[302,0.0],[303,0.0],[304,0.0],[305,0.0],[306,0.0],[307,0.0],[308,0.0],[309,0.0],[310,0.0],[311,0.0],[312,0.0],[313,0.0],[314,0.0],[315,0.0],[316,0.0],[317,0.0],[318,0.0],[319,0.0],[320,0.0],[321,0.0],[322,0.0],[323,0.0],[324,0.0],[325,0.0],[326,0.0],[327,0.0],[328,0.0],[329,0.0],[330,0.0],[331,0.0],[332,0.0],[333,0.0],[334,0.0],[335,0.0],[336,0.0],[337,0.0],[338,0.0],[339,0.0],[340,0.0],[341,0.0],[342,0.0],[343,0.0],[344,0.0],[345,0.0],[346,0.0],[347,0.0],[348,0.0],[349,0.0],[350,0.0],[351,0.0],[352,0.0],[353,0.0],[354,0.0],[355,0.0],[356,0.0],[357,0.0],[358,0.0],[359,0.0],[360,0.0],[361,0.0],[362,0.0],[363,0.0],[364,0.0],[365,0.0],[366,0.0],[367,0.0],[368,0.0],[369,0.0],[370,0.0],[371,0.0],[372,0.0],[373,0.0],[374,0.0],[375,0.0],[376,0.0],[377,0.0],[378,0.0],[379,0.0],[380,0.0],[381,0.0],[382,0.0],[383,0.0],[384,0.0],[385,0.0],[386,0.0],[387,0.0],[388,0.0],[389,0.0],[390,0.0],[391,0.0],[392,0.0],[393,0.0],[394,0.0],[395,0.0],[396,0.0],[397,0.0],[398,0.0],[399,0.0],[400,0.0],[401,0.0],[402,0.0],[403,0.0],[404,0.0],[405,0.0],[406,0.0],[407,0.0],[408,0.0],[409,0.0],[410,0.0],[411,0.0],[412,0.0],[413,0.0],[414,0.0],[415,0.0],[416,0.0],[417,0.0],[418,0.0],[419,0.0],[420,0.0],[421,0.0],[422,0.0],[423,0.0],[424,0.0],[425,0.0],[426,0.0],[427,0.0],[428,0.0],[429,0.0],[430,0.0],[431,0.0],[432,0.0],[433,0.0],[434,0.0],[435,0.0],[436,0.0],[437,0.0],[438,0.0],[439,0.0],[440,0.0],[441,0.0],[442,0.0],[443,0.0],[444,0.0],[445,0.0],[446,0.0],[447,0.0],[448,0.0],[449,0.0],[450,0.0],[451,0.0],[452,0.0],[453,0.0],[454,0.0],[455,0.0],[456,0.0],[457,0.0],[458,0.0],[459,0.0],[460,0.0],[461,0.0],[462,0.0],[463,0.0],[464,0.0],[465,0.0],[466,0.0],[467,0.0],[468,0.0],[469,0.0],[470,0.0],[471,0.0],[472,0.0],[473,0.0],[474,0.0],[475,0.0],[476,0.0],[477,0.0],[478,0.0],[479,0.0],[480,0.0],[481,0.0],[482,0.0],[483,0.0],[484,0.0],[485,0.0],[486,0.0],[487,0.0],[488,0.0],[489,0.0],[490,0.0],[491,0.0],[492,0.0],[493,0.0],[494,0.0],[495,0.0],[496,0.0],[497,0.0],[498,0.0],[499,0.0],[500,0.0],[501,0.0],[502,0.0],[503,0.0],[504,0.0],[505,0.0],[506,0.0],[507,0.0],[508,0.0],[509,0.0],[510,0.0],[511,0.0],[512,0.0],[513,0.0],[514,0.0],[515,0.0],[516,0.0],[517,0.0],[518,0.0],[519,0.0],[520,0.0],[521,0.0],[522,0.0],[523,0.0],[524,0.0],[525,0.0],[526,0.0],[527,0.0],[528,0.0],[529,0.0],[530,0.0],[531,0.0],[532,0.0],[533,0.0],[534,0.0],[535,0.0],[536,0.0],[537,0.0],[538,0.0],[539,0.0],[540,0.0],[541,0.0],[542,0.0],[543,0.0],[544,0.0],[545,0.0],[546,0.0],[547,0.0],[548,0.0],[549,0.0],[550,0.0],[551,0.0],[552,0.0],[553,0.0],[554,0.0],[555,0.0],[556,0.0],[557,0.0],[558,0.0],[559,0.0],[560,0.0],[561,0.0],[562,0.0],[563,0.0],[564,0.0],[565,0.0],[566,0.0],[567,0.0],[568,0.0],[569,0.0],[570,0.0],[571,0.0],[572,0.0],[573,0.0],[574,0.0],[575,0.0],[576,0.0],[577,0.0],[578,0.0],[579,0.0],[580,0.0],[581,0.0],[582,0.0],[583,0.0],[584,0.0],[585,0.0],[586,0.0],[587,0.0],[588,0.0],[589,0.0],[590,0.0],[591,0.0],[592,0.0],[593,0.0],[594,0.0],[595,0.0],[596,0.0],[597,0.0],[598,0.0],[599,0.0],[600,0.0],[601,0.0],[602,0.0],[603,0.0],[604,0.0],[605,0.0],[606,0.0],[607,0.0],[608,0.0],[609,0.0],[610,0.0],[611,0.0],[612,0.0],[613,0.0],[614,0.0],[615,0.0],[616,0.0],[617,0.0],[618,0.0],[619,0.0],[620,0.0],[621,0.0],[622,0.0],[623,0.0],[624,0.0],[625,0.0],[626,0.0],[627,0.0],[628,0.0],[629,0.0],[630,0.0],[631,0.0],[632,0.0],[633,0.0],[634,0.0],[635,0.0],[636,0.0],[637,0.0],[638,0.0],[639,0.0],[640,0.0],[641,0.0],[642,0.0],[643,0.0],[644,0.0],[645,0.0],[646,0.0],[647,0.0],[648,0.0],[649,0.0],[650,0.0],[651,0.0],[652,0.0],[653,0.0],[654,0.0],[655,0.0],[656,0.0],[657,0.0],[658,0.0],[659,0.0],[660,0.0],[661,0.0],[662,0.0],[663,0.0],[664,0.0],[665,0.0],[666,0.0],[667,0.0],[668,0.0],[669,0.0],[670,0.0],[671,0.0],[672,0.0],[673,0.0],[674,0.0],[675,0.0],[676,0.0],[677,0.0],[678,0.0],[679,0.0],[680,0.0],[681,0.0],[682,0.0],[683,0.0],[684,0.0],[685,0.0],[686,0.0],[687,0.0],[688,0.0],[689,0.0],[690,0.0],[691,0.0],[692,0.0],[693,0.0],[694,0.0],[695,0.0],[696,0.0],[697,0.0],[698,0.0],[699,0.0],[700,0.0],[701,0.0],[702,0.0],[703,0.0],[704,0.0],[705,0.0],[706,0.0],[707,0.0],[708,0.0],[709,0.0],[710,0.0],[711,0.0],[712,0.0],[713,0.0],[714,0.0],[715,0.0],[716,0.0],[717,0.0],[718,0.0],[719,0.0],[720,0.0],[721,0.0],[722,0.0],[723,0.0],[724,0.0],[725,0.0],[726,0.0],[727,0.0],[728,0.0],[729,0.0],[730,0.0],[731,0.0],[732,0.0],[733,0.0],[734,0.0],[735,0.0],[736,0.0],[737,0.0],[738,0.0],[739,0.0],[740,0.0],[741,0.0],[742,0.0],[743,0.0],[744,0.0],[745,0.0],[746,0.0],[747,0.0],[748,0.0],[749,0.0],[750,0.0],[751,0.0],[752,0.0],[753,0.0],[754,0.0],[755,0.0],[756,0.0],[757,0.0],[758,0.0],[759,0.0],[760,0.0],[761,0.0],[762,0.0],[763,0.0],[764,0.0],[765,0.0],[766,0.0],[767,0.0],[768,0.0],[769,0.0],[770,0.0],[771,0.0],[772,0.0],[773,0.0],[774,0.0],[775,0.0],[776,0.0],[777,0.0],[778,0.0],[779,0.0],[780,0.0],[781,0.0],[782,0.0],[783,0.0],[784,0.0],[785,0.0],[786,0.0],[787,0.0],[788,0.0],[789,0.0],[790,0.0],[791,0.0],[792,0.0],[793,0.0],[794,0.0],[795,0.0],[796,0.0],[797,0.0],[798,0.0],[799,0.0],[800,0.0]]}; // [step, share of groups with a tied top score]; judge: mean of 3 seeds, 20-step trailing average; verifier: max over 3 seeds (always 0)
-  const ARMS=[['verifier','Verifier','ver'],['judge','Judge','jud']];
+  const ARMS=[['judge','Judge','jud']];   // judge only: this chart now sits in Limitations, before the verifier is introduced
   const W=660,H=290,m={l:34,r:70,t:28,b:36},X1=800,Y1=.7;
   const x=v=>m.l+v/X1*(W-m.l-m.r),y=v=>m.t+(1-v/Y1)*(H-m.t-m.b);
   const path=pts=>pts.map(([a,b],i)=>(i?'L':'M')+x(a).toFixed(1)+' '+y(b).toFixed(1)).join('');
-  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: share of groups with a tied top score. The judge rises from about 33 percent over the first 50 steps to about 61 percent by step 800; the verifier stays at zero.">`;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart: share of groups with a tied top score. The judge rises from about 33 percent over the first 50 steps to about 61 percent by step 800.">`;
   [0,.2,.4,.6].forEach(v=>s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${Math.round(v*100)}%</text>`);
   s+=`<text class="cap" x="${m.l-8}" y="${m.t-16}">Groups with a tied top score</text>`;
   [0,200,400,600,800].forEach(v=>s+=`<text x="${x(v)}" y="${H-m.b+18}" text-anchor="middle">${v}</text>`);
@@ -699,21 +872,20 @@ el.addEventListener('mouseleave',()=>tip.style.opacity=0)}
   ARMS.forEach(([arm,,c])=>s+=`<path class="mean s-${c} draw" d="${path(D[arm])}"/>`);
   ARMS.forEach(([arm,label,c])=>{const last=D[arm][D[arm].length-1];
     s+=`<text class="end-lbl end-${c} fade" x="${x(last[0])+8}" y="${y(last[1])+4}">${label}</text>`});
-  s+=`<line class="guide" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}"/><circle class="dot ver" r="4"/><circle class="dot jud" r="4"/>`;
+  s+=`<line class="guide" x1="0" x2="0" y1="${m.t}" y2="${H-m.b}"/><circle class="dot jud" r="4"/>`;
   s+=`<rect class="hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/></svg>`;
   el.innerHTML=s;
   el.querySelectorAll('.draw').forEach(p=>p.style.setProperty('--len',p.getTotalLength()));
-  const svg=el.querySelector('svg'),hit=el.querySelector('.hit'),guide=el.querySelector('.guide'),dv=el.querySelector('.dot.ver'),dj=el.querySelector('.dot.jud');
+  const svg=el.querySelector('svg'),hit=el.querySelector('.hit'),guide=el.querySelector('.guide'),dj=el.querySelector('.dot.jud');
   const at=(arm,k)=>{const p=D[arm].find(q=>q[0]===k);return p?p[1]:null};
   hit.addEventListener('mousemove',e=>{const b=svg.getBoundingClientRect(),sx=(e.clientX-b.left)/b.width*W;
     const k=Math.max(0,Math.min(D.judge[D.judge.length-1][0],Math.round((sx-m.l)/(W-m.l-m.r)*X1)));
-    const j=at('judge',k),v=at('verifier',k);
+    const j=at('judge',k);
     guide.setAttribute('x1',x(k));guide.setAttribute('x2',x(k));guide.style.opacity=1;
     if(j!=null){dj.setAttribute('cx',x(k));dj.setAttribute('cy',y(j));dj.style.opacity=1}else dj.style.opacity=0;
-    if(v!=null){dv.setAttribute('cx',x(k));dv.setAttribute('cy',y(v));dv.style.opacity=1}else dv.style.opacity=0;
-    tip.textContent=`Step ${k} · judge ${j!=null?Math.round(j*100)+'%':'–'} · verifier ${v!=null?Math.round(v*100)+'%':'–'}`;
+    tip.textContent=`Step ${k} · judge ${j!=null?Math.round(j*100)+'%':'–'}`;
     tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY-30+'px';tip.style.opacity=1});
-  hit.addEventListener('mouseleave',()=>{guide.style.opacity=dv.style.opacity=dj.style.opacity=tip.style.opacity=0});
+  hit.addEventListener('mouseleave',()=>{guide.style.opacity=dj.style.opacity=tip.style.opacity=0});
 })();
 
 /* ---------- RL pipeline: stages light up in turn, then the loop pulses back ---------- */
@@ -742,6 +914,33 @@ function copyCite(b){const t=b.parentElement.innerText.replace(/^Cop(y|ied)\s*/,
 navigator.clipboard?.writeText(t).then(()=>{b.textContent='Copied';setTimeout(()=>b.textContent='Copy',1500)})}
 document.getElementById('themeBtn').onclick=()=>{const r=document.documentElement;
 const dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;r.dataset.theme=dark?'light':'dark'};
+</script>
+<script>
+/* Judge-tie examples: a thumbnail picks the pair; only the chosen pair's scenes are loaded, and only near the screen */
+(function(){
+  const fig=document.getElementById('fig-judge-tie'); if(!fig) return;
+  const pairs=[...fig.querySelectorAll('.tie-pair')], titles=[...fig.querySelectorAll('.tie-row-title')], btns=[...fig.querySelectorAll('.tie-thumbs button')];
+  let cur=0, near=false;
+  const show=()=>pairs.forEach((p,i)=>{ const on=i===cur; p.hidden=!on; titles[i].hidden=!on;
+    const t0=Date.now();   // scenes with a start angle (a0) begin their circle together, from that view
+    p.querySelectorAll('iframe').forEach(f=>{ if(on&&near){ if(!f.getAttribute('src')) f.src=f.dataset.src+(f.dataset.src.includes('a0=')?'&t0='+t0:'') } else if(f.getAttribute('src')) f.removeAttribute('src') }) });
+  btns.forEach((b,i)=>b.addEventListener('click',()=>{ btns.forEach(x=>x.setAttribute('aria-pressed',String(x===b))); cur=i; near=true; show() }));
+  if('IntersectionObserver' in window) new IntersectionObserver(es=>{ near=es[0].isIntersecting; show() },{rootMargin:'300px 0px'}).observe(fig);
+  else { near=true; show() }
+})();
+/* 3D gallery: a thumbnail swaps the live scene; the scene is loaded only while the figure is near the screen */
+(function(){
+  const fig=document.getElementById('fig-3d-gallery'); if(!fig) return;
+  const frame=fig.querySelector('iframe'), title=document.getElementById('g3d-title'), btns=[...fig.querySelectorAll('.g3d-thumbs button')];
+  let src=frame.dataset.src, near=false;
+  const show=()=>{ if(near){ if(frame.getAttribute('src')!==src) frame.src=src } else if(frame.getAttribute('src')) frame.removeAttribute('src') };
+  btns.forEach(b=>b.addEventListener('click',()=>{
+    btns.forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+    src=b.dataset.scene; frame.title=b.dataset.desc; title.textContent=b.dataset.title; near=true; show();
+  }));
+  if('IntersectionObserver' in window) new IntersectionObserver(es=>{ near=es[0].isIntersecting; show() },{rootMargin:'300px 0px'}).observe(fig);
+  else { near=true; show() }
+})();
 </script>
 </body>
 </html>

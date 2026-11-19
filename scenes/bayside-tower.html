@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vice City — Bayside Tower · Miami Night</title>
+<style>
+  :root{
+    --pink:#ff2d9a; --violet:#8a3df0; --cyan:#37e6ff; --gold:#ffd9a0;
+  }
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#050510;font-family:'Avenir Next','Segoe UI',system-ui,sans-serif;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+  .panel{
+    position:fixed;top:18px;left:18px;z-index:10;pointer-events:none;
+    padding:14px 18px 12px;border-radius:14px;
+    background:linear-gradient(160deg,rgba(10,8,28,.78),rgba(24,10,38,.62));
+    border:1px solid rgba(255,45,154,.35);
+    box-shadow:0 0 34px rgba(255,45,154,.18), inset 0 0 24px rgba(138,61,240,.10);
+    backdrop-filter:blur(6px);color:#f5e9ff;max-width:340px;
+  }
+  .panel h1{
+    margin:0 0 2px;font-size:21px;letter-spacing:.16em;font-weight:800;
+    background:linear-gradient(180deg,#ffffff 15%,#ffb3d9 38%,#ff2d9a 60%,#8a3df0 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 0 22px rgba(255,45,154,.35);
+  }
+  .panel .sub{font-size:10.5px;letter-spacing:.28em;color:#b79ce8;text-transform:uppercase;margin-bottom:8px;}
+  .panel .keys{font-size:10.5px;line-height:1.75;color:#cbb8ee;}
+  .panel .keys b{display:inline-block;min-width:34px;color:var(--cyan);font-weight:700;border:1px solid rgba(55,230,255,.35);border-radius:4px;padding:0 5px;margin-right:6px;text-align:center;background:rgba(55,230,255,.06);}
+  #recBtn{
+    position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:11;cursor:pointer;
+    font:700 12px/1 'Avenir Next',sans-serif;letter-spacing:.22em;text-transform:uppercase;
+    color:#fff;padding:14px 30px;border-radius:999px;border:1px solid rgba(255,45,154,.7);
+    background:radial-gradient(120% 160% at 50% 0%, rgba(255,45,154,.5), rgba(80,20,90,.65));
+    box-shadow:0 0 26px rgba(255,45,154,.45), inset 0 0 18px rgba(255,255,255,.12);
+    transition:transform .15s, box-shadow .15s;
+  }
+  #recBtn:hover{transform:translateX(-50%) scale(1.05);box-shadow:0 0 44px rgba(255,45,154,.7), inset 0 0 18px rgba(255,255,255,.18);}
+  #recBtn:disabled{opacity:.55;cursor:default;}
+  #benchChip{
+    position:fixed;bottom:22px;right:20px;z-index:10;pointer-events:none;
+    font:10px/1.6 'SF Mono',Menlo,monospace;color:#8f83c4;letter-spacing:.08em;
+    background:rgba(8,6,24,.6);border:1px solid rgba(138,61,240,.3);border-radius:8px;padding:8px 12px;
+  }
+  #benchChip span{color:#37e6ff;}
+  #vignette{position:fixed;inset:0;z-index:5;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(2,2,12,.55) 100%);}
+  /* blog embed: the scene only */
+  .panel,#recBtn,#benchChip{display:none!important}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+<div class="panel">
+  <h1>VICE CITY</h1>
+  <div class="sub">Bayside Tower · Miami</div>
+  <div class="keys">
+    <div><b>+ / −</b> light-pen speed</div>
+    <div><b>N</b> cycle animation (wave · sparkle · sunrise)</div>
+    <div><b>1</b> bay-side view &nbsp;·&nbsp; <b>2</b> helicopter orbit</div>
+    <div><b>R</b> restart the drawing</div>
+  </div>
+</div>
+<button id="recBtn">⏺ &nbsp;Record Video</button>
+<div id="benchChip">phase <span id="bp">drawing</span> · <span id="bpr">0%</span> · lit <span id="bl">0</span>/<span id="bt">0</span></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ============================================================
+   VICE CITY — Bayside Tower
+   A downtown Miami superslab whose LED bay grid writes
+   "Vice City" in brush-script neon across the waterfront.
+   ============================================================ */
+
+// ---------- deterministic RNG ----------
+function mulberry32(a){return function(){a|=0;a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;}}
+const rng = mulberry32(19860817);
+const clamp01 = v => Math.max(0, Math.min(1, v));
+const lerp = (a,b,t) => a + (b-a)*t;
+const smooth = t => t*t*(3-2*t);
+
+// ---------- renderer / scene / camera ----------
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0b0a1e, 480, 1650);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth/window.innerHeight, 0.5, 4000);
+camera.position.set(118, 26, 168);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 52, -118);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxDistance = 600;
+controls.minDistance = 12;
+controls.maxPolarAngle = Math.PI * 0.52;
+// blog embed: drag to orbit on mouse/trackpad only, no zoom or pan; touch scrolls the page
+const EMBED_MOVE = matchMedia('(hover: hover) and (pointer: fine)').matches;
+controls.enabled = EMBED_MOVE; controls.enableZoom = false; controls.enablePan = false;
+renderer.domElement.style.pointerEvents = EMBED_MOVE ? 'auto' : 'none';
+// blog embed: fixed starting view, square on to the logo facade (override with ?cam=x,y,z&tgt=x,y,z&fov=n)
+const EMBED_VIEW = { cam:[-36, 108, 80], tgt:[50, 48, -106], fov:50 };
+{ const q = new URLSearchParams(location.search), v = k => q.get(k).split(',').map(Number);
+  if (q.get('cam')) EMBED_VIEW.cam = v('cam'); if (q.get('tgt')) EMBED_VIEW.tgt = v('tgt'); if (q.get('fov')) EMBED_VIEW.fov = +q.get('fov'); }
+camera.fov = EMBED_VIEW.fov; camera.updateProjectionMatrix();
+camera.position.set(...EMBED_VIEW.cam); controls.target.set(...EMBED_VIEW.tgt); controls.update();
+let embedVisible = true;
+if ('IntersectionObserver' in window) new IntersectionObserver(es => { embedVisible = es[0].isIntersecting; }).observe(document.documentElement);
+
+// ---------- palette ----------
+const PAL = {
+  fill:   new THREE.Color(1.00, 1.00, 1.00).multiplyScalar(0.70),   // white fill @ 70%
+  outline:new THREE.Color(1.00, 0.176, 0.604).multiplyScalar(0.70), // hot pink @ 70%
+  shadow: new THREE.Color(0.42, 0.16, 0.85).multiplyScalar(0.42),   // deep violet drop copy
+  off:    new THREE.Color(0.045, 0.055, 0.10),                      // unlit bay
+  warmA:  new THREE.Color(1.00, 0.83, 0.55),
+  warmB:  new THREE.Color(1.00, 0.68, 0.38),
+  coolA:  new THREE.Color(0.66, 0.86, 1.00),
+  coolB:  new THREE.Color(0.80, 0.75, 1.00),
+};
+
+// ============================================================
+//  PROCEDURAL LOGO MASK  ("Vice City" script + y-tail swash)
+// ============================================================
+const CW = 1600, CH = 540;
+const FONT_STACK = '"Snell Roundhand","Brush Script MT","Segoe Script","Lucida Handwriting","Apple Chancery",cursive';
+
+function paintLogo(ctx, o){
+  const { dx=0, dy=0, lwText=0, textCol=null, swashCol=null, swashLw=0, textFillExtra=0 } = o;
+  ctx.save();
+  ctx.translate(dx, dy);
+  ctx.translate(CW/2, CH/2);
+  ctx.transform(1, 0, -0.18, 1, 0, 0);   // slanted brush-script italic
+  ctx.translate(-CW/2, -CH/2);
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  // fit font size to canvas width
+  let size = 330;
+  ctx.font = `800 italic ${size}px ${FONT_STACK}`;
+  while (ctx.measureText('Vice City').width > 1300 && size > 120){ size -= 10; ctx.font = `800 italic ${size}px ${FONT_STACK}`; }
+  const ty = 212;
+  if (textCol){
+    if (textFillExtra > 0){ ctx.strokeStyle = textCol; ctx.lineWidth = textFillExtra; ctx.strokeText('Vice City', CW/2, ty); }
+    ctx.fillStyle = textCol; ctx.fillText('Vice City', CW/2, ty);
+    if (lwText > 0){ ctx.strokeStyle = textCol; ctx.lineWidth = lwText; ctx.strokeText('Vice City', CW/2, ty); }
+  }
+  // underline swash — tail of the final "y" sweeping back under both words, ending in a flourish
+  const tw = ctx.measureText('Vice City').width;
+  const sx = CW/2 + tw/2 - 30;
+  ctx.beginPath();
+  ctx.moveTo(sx, 292);
+  ctx.bezierCurveTo(sx + 24, 396,  sx - 92, 440,  sx - 268, 440);   // dive down off the y
+  ctx.bezierCurveTo(sx - 480, 440, sx - 780, 436, sx - 940, 426);   // long sweep back left
+  ctx.bezierCurveTo(sx - 1030, 420, sx - 1044, 366, sx - 1018, 332);// rise into the flourish
+  ctx.bezierCurveTo(sx - 992, 300, sx - 906, 312, sx - 898, 388);   // curl hook
+  if (swashCol){ ctx.strokeStyle = swashCol; ctx.lineWidth = swashLw; ctx.stroke(); }
+  ctx.restore();
+}
+function makeMask(painter){
+  const c = document.createElement('canvas'); c.width = CW; c.height = CH;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,CW,CH);
+  painter(ctx);
+  return ctx.getImageData(0,0,CW,CH).data;
+}
+const imgFill = makeMask(c => paintLogo(c, { textCol:'#ffffff', textFillExtra:16, swashCol:'#ffffff', swashLw:26 }));
+const imgSil  = makeMask(c => paintLogo(c, { lwText:56, textCol:'#ffffff', swashCol:'#ffffff', swashLw:64 }));        // thick silhouette (outline fringe)
+const imgShad = makeMask(c => paintLogo(c, { dx:22, dy:24, lwText:56, textCol:'#ffffff', swashCol:'#ffffff', swashLw:64 })); // offset deep-violet copy
+const imgSwash= makeMask(c => paintLogo(c, { swashCol:'#ffffff', swashLw:70 }));
+const lum = (img, x, y) => img[(((y|0)*CW + (x|0)) * 4)];
+
+// ============================================================
+//  TOWER GEOMETRY + PIXEL GRIDS
+// ============================================================
+const TOOL = new THREE.MeshStandardMaterial({ color:0x141824, roughness:0.85, metalness:0.2 });
+
+function mullionTexture(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
+  const g = c.getContext('2d');
+  g.fillStyle = '#141824'; g.fillRect(0,0,512,512);
+  const grad = g.createLinearGradient(0,0,512,512);
+  grad.addColorStop(0,'rgba(255,255,255,0.05)'); grad.addColorStop(0.5,'rgba(255,255,255,0)'); grad.addColorStop(1,'rgba(255,255,255,0.06)');
+  g.fillStyle = grad; g.fillRect(0,0,512,512);
+  g.strokeStyle = 'rgba(0,0,0,0.85)'; g.lineWidth = 3;
+  for (let x=0; x<=512; x+=16){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,512); g.stroke(); }
+  for (let y=0; y<=512; y+=10){ g.beginPath(); g.moveTo(0,y); g.lineTo(512,y); g.stroke(); }
+  g.strokeStyle = 'rgba(120,150,220,0.12)'; g.lineWidth = 1;
+  for (let x=1; x<=512; x+=16){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,512); g.stroke(); }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+const mullTex = mullionTexture(); mullTex.repeat.set(10, 6);
+const logoFacadeMat = new THREE.MeshStandardMaterial({ map:mullTex, color:0xbfc6dd, roughness:0.8, metalness:0.25, emissive:0x05060c, emissiveIntensity:0.6 });
+
+function solidBox(w,h,d, x,yBase,z, mat, shadows=true){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat || TOOL);
+  m.position.set(x, yBase + h/2, z);
+  m.castShadow = shadows; m.receiveShadow = true;
+  scene.add(m); return m;
+}
+
+// pixel records
+const PX = { pos:[], type:[], order:[] };   // type: 0 window, 1 fill, 2 outline, 3 shadow
+const towerTint = new THREE.Color();
+function addGrid(cx, yBase, zFace, faceW, faceH, cols, rows, sx, sy, towerSeed){
+  const r = mulberry32(towerSeed);
+  const wSpan = (cols-1)*sx, hSpan = (rows-1)*sy;
+  const x0 = cx - wSpan/2, y0 = yBase + (faceH - hSpan)/2;
+  for (let j=0;j<rows;j++){
+    for (let i=0;i<cols;i++){
+      const px = x0 + i*sx, py = y0 + j*sy, pz = zFace + 0.14;
+      // ordinary window personality
+      const lit = r() < 0.115;
+      const warm = r() < 0.72;
+      const b = 0.32 + r()*0.34;
+      PX.pos.push(px, py, pz);
+      PX.type.push(0);
+      PX.order.push(1);
+      PX['warm'+PX.order.length] = undefined; // (unused placeholder)
+      if (lit){
+        towerTint.copy(warm ? (r()<0.5?PAL.warmA:PAL.warmB) : (r()<0.5?PAL.coolA:PAL.coolB)).multiplyScalar(b);
+      } else {
+        towerTint.copy(PAL.off).multiplyScalar(0.55 + r()*0.75);
+      }
+      // store colour packed as r,g,b in order array tail — use separate array:
+      (PX.col = PX.col || []).push(towerTint.r, towerTint.g, towerTint.b);
+    }
+  }
+  return { x0, y0, wSpan, hSpan };
+}
+
+// ============ BAYSIDE TOWER (the logo slab, three tiers) ============
+const LT = new THREE.Group(); scene.add(LT);
+const towerZ = -128;
+// tier geometry
+solidBox(184, 66, 48, 0, 0, towerZ, logoFacadeMat);          // tier 1 — logo canvas lives here
+solidBox(150, 30, 40, 0, 66, towerZ-2, logoFacadeMat);       // setback 2
+solidBox(110, 18, 34, 0, 96, towerZ-4, logoFacadeMat);       // setback 3
+solidBox(118, 2.4, 40, 0, 114, towerZ-4, new THREE.MeshStandardMaterial({ color:0x1a1426, emissive:0xff2d9a, emissiveIntensity:1.15, roughness:0.6 })); // crown LED band
+solidBox(92, 1.6, 30, 0, 116.4, towerZ-4, new THREE.MeshStandardMaterial({ color:0x111, emissive:0xfff2f8, emissiveIntensity:1.5 }));                  // crown top glow
+// podium + entrance canopy
+solidBox(196, 5, 56, 0, 0, towerZ+2, new THREE.MeshStandardMaterial({ color:0x0d0f1a, roughness:0.9 }));
+solidBox(30, 0.8, 8, 0, 5.4, towerZ+29, new THREE.MeshStandardMaterial({ color:0x111, emissive:0xffd9a0, emissiveIntensity:1.6 }));
+// spire
+const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.1, 20, 8), TOOL);
+spire.position.set(0, 127, towerZ-4); spire.castShadow = true; scene.add(spire);
+
+const T1 = addGrid(0, 0, towerZ+24, 184, 66, 178, 62, 0.95, 0.95, 101);   // 11,036 bays
+addGrid(0, 66, towerZ+18, 150, 30, 146, 28, 0.95, 0.95, 102);             //  4,088
+addGrid(0, 96, towerZ+13, 110, 18, 106, 15, 0.95, 0.95, 103);             //  1,590
+const LOGO_COUNT = 178*62;
+
+// side towers with individual bays
+solidBox(40, 58, 30, -146, 0, -152, logoFacadeMat);
+addGrid(-146, 0, -137, 40, 58, 34, 52, 1.02, 1.02, 104);                  //  1,768
+solidBox(36, 46, 28,  152, 0, -158, logoFacadeMat);
+addGrid(152, 0, -144, 36, 46, 30, 42, 1.02, 1.02, 105);                   //  1,260
+solidBox(28, 25, 24,  104, 0, -96, logoFacadeMat);
+addGrid(104, 0, -84, 28, 25, 25, 21, 1.0, 1.0, 106);                      //    525
+const TOTAL_PIXELS = PX.pos.length / 3;
+
+// ---------- classify tier-1 pixels against logo masks ----------
+const strokeIdx = [];
+{
+  const x1 = T1.x0 + T1.wSpan, x0 = T1.x0;
+  const yTop = T1.y0 + T1.hSpan, yBot = T1.y0;
+  for (let k=0;k<LOGO_COUNT;k++){
+    const px = PX.pos[k*3], py = PX.pos[k*3+1];
+    const u = clamp01((px - x0) / (x1 - x0));
+    const v = clamp01((py - yBot) / (yTop - yBot));
+    const cx = Math.floor(u * (CW-1));
+    const cy = Math.floor((1 - v) * (CH-1));
+    const f = lum(imgFill, cx, cy), s = lum(imgSil, cx, cy), sh = lum(imgShad, cx, cy), sw = lum(imgSwash, cx, cy);
+    const isFill = f > 105, isSil = s > 105, isShad = sh > 105 && !isSil;
+    if (!isFill && !isSil && !isShad) continue;
+    let order;
+    if (sw > 105) order = 0.80 + 0.20 * clamp01((1180 - cx) / (1180 - 150));       // y-tail → left-to-right swash
+    else          order = 0.80 * clamp01((cx - 150) / 1290);                        // text sweep L→R in writing order
+    let type, col;
+    if (isFill){ type = 1; col = PAL.fill; }
+    else if (isSil){ type = 2; col = PAL.outline; }
+    else { type = 3; order = Math.max(0, order - 0.012); col = PAL.shadow; }        // shadow lands a hair before the pen
+    PX.type[k] = type; PX.order[k] = order;
+    PX.col[k*3] = col.r; PX.col[k*3+1] = col.g; PX.col[k*3+2] = col.b;
+    strokeIdx.push(k);
+  }
+}
+// ordinary-window base colours live in PX.col (already filled); count static lit ones
+let ordinaryLit = 0;
+for (let k=LOGO_COUNT;k<TOTAL_PIXELS;k++){
+  const c = PX.col[k*3];
+  if (c > 0.09) ordinaryLit++;
+}
+// stroke pixels that are always "lit" once drawn
+const STROKE_TOTAL = strokeIdx.length;
+
+// ---------- build the InstancedMesh of all bays ----------
+const bayGeo = new THREE.PlaneGeometry(0.8, 0.8);
+const bayMat = new THREE.MeshBasicMaterial({ toneMapped:true });
+const bays = new THREE.InstancedMesh(bayGeo, bayMat, TOTAL_PIXELS);
+{
+  const m = new THREE.Matrix4();
+  const col = new THREE.Color();
+  for (let k=0;k<TOTAL_PIXELS;k++){
+    m.makeTranslation(PX.pos[k*3], PX.pos[k*3+1], PX.pos[k*3+2]);
+    bays.setMatrixAt(k, m);
+    const isLogoStroke = PX.type[k] !== 0;
+    if (isLogoStroke) col.copy(PAL.off).multiplyScalar(0.8);           // hidden until the pen arrives
+    else col.setRGB(PX.col[k*3], PX.col[k*3+1], PX.col[k*3+2]);
+    bays.setColorAt(k, col);
+  }
+  bays.instanceMatrix.needsUpdate = true;
+  bays.instanceColor.setUsage(THREE.DynamicDrawUsage);
+}
+scene.add(bays);
+
+// ============================================================
+//  SKY · MOON · STARS
+// ============================================================
+function skyTexture(){
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0,0,0,512);
+  grad.addColorStop(0.00, '#030311');
+  grad.addColorStop(0.42, '#0d0c26');
+  grad.addColorStop(0.66, '#241536');
+  grad.addColorStop(0.80, '#45203f');
+  grad.addColorStop(0.90, '#5e2745');
+  grad.addColorStop(1.00, '#33182f');
+  g.fillStyle = grad; g.fillRect(0,0,1024,512);
+  // distant glow of the skyline
+  const glow = g.createRadialGradient(512, 470, 10, 512, 470, 340);
+  glow.addColorStop(0, 'rgba(255,80,160,0.4)'); glow.addColorStop(0.5,'rgba(170,60,180,0.14)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle = glow; g.fillRect(0,0,1024,512);
+  // stars
+  for (let i=0;i<900;i++){
+    const y = rng()*300, x = rng()*1024, a = 0.25 + rng()*0.75, s = rng()<0.08 ? 2 : 1;
+    g.fillStyle = `rgba(255,255,255,${a})`; g.fillRect(x, y, s, s);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(1800, 32, 20),
+  new THREE.MeshBasicMaterial({ map:skyTexture(), side:THREE.BackSide, fog:false })
+);
+scene.add(sky);
+
+// moon sprite
+function glowSprite(inner, outer){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(64,64,2,64,64,64);
+  gr.addColorStop(0, inner); gr.addColorStop(0.35, outer); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0,0,128,128);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.SpriteMaterial({ map:t, transparent:true, depthWrite:false, fog:false, blending:THREE.AdditiveBlending });
+}
+const moon = new THREE.Sprite(glowSprite('rgba(255,252,240,1)','rgba(220,225,255,0.35)'));
+moon.position.set(-520, 330, -900); moon.scale.set(120,120,1); scene.add(moon);
+
+// ============================================================
+//  WATER — true mirror of skyline + logo
+// ============================================================
+const water = new Reflector(new THREE.PlaneGeometry(3200, 900), {
+  clipBias: 0.003, textureWidth: 2048, textureHeight: 2048, color: 0x8a92a6
+});
+water.rotation.x = -Math.PI/2;
+water.position.set(0, 0, 265);
+scene.add(water);
+// deep-tint overlay to sell "still dark water"
+function waterNoise(){
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'); g.fillStyle = '#070a1c'; g.fillRect(0,0,256,256);
+  for (let i=0;i<2600;i++){ g.fillStyle = `rgba(140,180,255,${rng()*0.16})`; g.fillRect(rng()*256, rng()*256, rng()*22+1, 1); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(9,4);
+  return t;
+}
+const waterTint = new THREE.Mesh(
+  new THREE.PlaneGeometry(3200, 900),
+  new THREE.MeshBasicMaterial({ map:waterNoise(), transparent:true, opacity:0.44, depthWrite:false })
+);
+waterTint.rotation.x = -Math.PI/2; waterTint.position.set(0, 0.12, 265);
+scene.add(waterTint);
+
+// ============================================================
+//  LAND, PROMENADE, PALMS
+// ============================================================
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2400, 800), new THREE.MeshStandardMaterial({ color:0x06070e, roughness:1 }));
+ground.rotation.x = -Math.PI/2; ground.position.set(0, -0.05, -380); ground.receiveShadow = true; scene.add(ground);
+solidBox(900, 3.4, 4.2, 0, 0, -45.5, new THREE.MeshStandardMaterial({ color:0x12141f, roughness:0.9 })); // seawall
+
+// palm frond texture
+function frondTexture(){
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const g = c.getContext('2d'); g.clearRect(0,0,128,128);
+  g.strokeStyle = '#1d4d2c'; g.lineCap = 'round';
+  g.translate(64, 120);
+  for (let i=-3;i<=3;i++){
+    g.save(); g.rotate(i*0.36);
+    g.lineWidth = 7 - Math.abs(i);
+    g.beginPath(); g.moveTo(0,0); g.quadraticCurveTo(4, -70, 0, -118); g.stroke();
+    g.lineWidth = 2.4; g.strokeStyle = '#2c6b3d';
+    for (let t=18;t<112;t+=14){ g.beginPath(); g.moveTo(0,-t); g.lineTo(-14,-t-12); g.moveTo(0,-t); g.lineTo(14,-t-12); g.stroke(); }
+    g.restore();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const frondTex = frondTexture();
+const palmMat = new THREE.MeshLambertMaterial({ map:frondTex, transparent:true, alphaTest:0.35, side:THREE.DoubleSide });
+const trunkMat = new THREE.MeshStandardMaterial({ color:0x2a2018, roughness:1 });
+function addPalm(x, z, s){
+  const g = new THREE.Group();
+  const h = 6.4*s;
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16*s, 0.3*s, h, 6), trunkMat);
+  trunk.position.y = h/2; trunk.rotation.z = (rng()-0.5)*0.22; trunk.castShadow = true; g.add(trunk);
+  for (let i=0;i<3;i++){
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(4.6*s, 4.6*s), palmMat);
+    f.position.set(trunk.position.x + Math.sin(i*2.1)*0.2, h, Math.cos(i*2.1)*0.2);
+    f.rotation.y = i*2.1; f.castShadow = true; g.add(f);
+  }
+  g.position.set(x, 3.2, z); scene.add(g);
+}
+for (let x=-290; x<=290; x+=7.5){ if (Math.abs(x) < 14) continue; if (rng() < 0.85) addPalm(x + (rng()-0.5)*2, -49.5 - rng()*1.5, 0.75 + rng()*0.5); }
+// promenade lamps
+const lampGeo = new THREE.SphereGeometry(0.32, 8, 6);
+const lampMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.0, 0.82, 0.55).multiplyScalar(1.6) });
+const poleMat = new THREE.MeshStandardMaterial({ color:0x0c0d14, roughness:0.8 });
+for (let x=-264; x<=264; x+=22){
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 3.4, 6), poleMat);
+  pole.position.set(x, 5.0, -46.2); scene.add(pole);
+  const bulb = new THREE.Mesh(lampGeo, lampMat); bulb.position.set(x, 6.8, -46.2); scene.add(bulb);
+}
+
+// ============================================================
+//  60+ BACKGROUND HIGH-RISES (emissive-window textures)
+// ============================================================
+function facadeTexture(seed, litChance){
+  const r = mulberry32(seed);
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0a0c16'; g.fillRect(0,0,128,256);
+  g.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let i=0;i<40;i++) g.fillRect(r()*128, r()*256, r()*30+4, r()*14+2);
+  const cw = 10, chh = 12;
+  for (let y=6; y<250; y+=chh){
+    for (let x=5; x<122; x+=cw){
+      if (r() < litChance){
+        const warm = r() < 0.7;
+        const a = 0.35 + r()*0.6;
+        g.fillStyle = warm ? `rgba(255,205,130,${a})` : `rgba(160,205,255,${a})`;
+      } else g.fillStyle = '#05060d';
+      g.fillRect(x, y, 7, 8);
+    }
+  }
+  g.strokeStyle = 'rgba(0,0,0,0.9)'; g.lineWidth = 2;
+  for (let x=0;x<=128;x+=cw){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,256); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const facadeSets = [ facadeTexture(11,0.16), facadeTexture(22,0.11), facadeTexture(33,0.22), facadeTexture(44,0.08), facadeTexture(55,0.14), facadeTexture(66,0.18) ].map(tex =>
+  new THREE.MeshStandardMaterial({ color:0x1a1d2c, roughness:0.92, emissive:0xffffff, emissiveMap:tex, emissiveIntensity:0.85, map:tex })
+);
+const beacons = [];
+function addBeacon(x, y, z){
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(0.55, 8, 6),
+    new THREE.MeshStandardMaterial({ color:0x330000, emissive:0xff2222, emissiveIntensity:2.2 })
+  );
+  m.position.set(x, y, z); scene.add(m);
+  beacons.push({ mat:m.material, ph:rng()*6.28 });
+}
+const bRng = mulberry32(777);
+let builtCount = 0;
+for (let i=0; i<78; i++){
+  const x = (bRng()*2-1) * 430;
+  const z = -78 - bRng()*150;
+  if (Math.abs(x) < 118 && z > -175 && z < -85) continue;  // keep the logo tower clear
+  const h = 26 + Math.pow(bRng(), 1.5) * 96;
+  const w = 11 + bRng()*17, d = 11 + bRng()*17;
+  const mat = facadeSets[(bRng()*facadeSets.length)|0];
+  let y = 0;
+  const t1 = h*0.62, t2 = h*0.27, t3 = h - t1 - t2;
+  solidBox(w, t1, d, x, y, z, mat); y += t1;
+  solidBox(w*0.76, t2, d*0.76, x, y, z, mat); y += t2;
+  if (t3 > 3) solidBox(w*0.52, t3, d*0.52, x, y, z, mat); y += Math.max(0,t3);
+  if (h > 52) addBeacon(x, y + 1.2, z);
+  if (h > 96 && bRng() < 0.5){
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 16, 6), TOOL);
+    ant.position.set(x, y + 8, z); scene.add(ant); addBeacon(x, y + 16.5, z);
+  }
+  builtCount++;
+}
+// two signature supertalls flanking the slab
+solidBox(30, 128, 26, -128, 0, -205, facadeSets[1]); addBeacon(-128, 130.5, -205);
+solidBox(26, 112, 24,  132, 0, -212, facadeSets[3]); addBeacon(132, 114.5, -212);
+// main tower spire beacon
+addBeacon(0, 137.6, towerZ-4);
+
+// ============================================================
+//  ELEVATED PEOPLE-MOVER
+// ============================================================
+const moverZ = -66, moverY = 30;
+solidBox(400, 1.4, 2.2, 0, moverY, moverZ, new THREE.MeshStandardMaterial({ color:0x181a26, roughness:0.7 }));       // track beam
+for (let x=-192; x<=192; x+=24) solidBox(1.6, moverY, 1.6, x, 0, moverZ, new THREE.MeshStandardMaterial({ color:0x0f1119, roughness:0.9 }));
+const train = new THREE.Group();
+const trainBody = new THREE.MeshStandardMaterial({ color:0xd8dde8, roughness:0.35, metalness:0.55 });
+const trainStripe = new THREE.MeshStandardMaterial({ color:0x111, emissive:0x37e6ff, emissiveIntensity:1.5 });
+for (let c=0;c<3;c++){
+  const car = new THREE.Mesh(new THREE.BoxGeometry(7.2, 2.6, 2.6), trainBody);
+  car.position.x = c*8.0; car.castShadow = true; train.add(car);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.7, 2.66), trainStripe);
+  stripe.position.set(c*8.0, 0.1, 0); train.add(stripe);
+}
+train.position.set(0, moverY + 2.1, moverZ); scene.add(train);
+
+// ============================================================
+//  BRIDGE WITH MOVING HEADLIGHTS
+// ============================================================
+const bStart = new THREE.Vector3(295, 9.5, 62), bEnd = new THREE.Vector3(560, 9.5, -205);
+const bDir = bEnd.clone().sub(bStart); const bLen = bDir.length();
+const bMid = bStart.clone().add(bEnd).multiplyScalar(0.5);
+const bridgeAngle = Math.atan2(bDir.x, bDir.z);
+const deck = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1.6, bLen), new THREE.MeshStandardMaterial({ color:0x151722, roughness:0.8 }));
+deck.position.copy(bMid); deck.rotation.y = bridgeAngle; deck.castShadow = true; scene.add(deck);
+const pylonMat = new THREE.MeshStandardMaterial({ color:0x1b1d29, roughness:0.85, emissive:0xff9a3c, emissiveIntensity:0.06 });
+[0.36, 0.68].forEach(t => {
+  const p = bStart.clone().addScaledVector(bDir, t);
+  solidBox(3.4, 46, 3.4, p.x, 0, p.z, pylonMat);
+  solidBox(9.5, 2.2, 3.4, p.x, 44, p.z, pylonMat);
+});
+// cable stays
+{
+  const pts = [];
+  [0.36, 0.68].forEach(t => {
+    const top = bStart.clone().addScaledVector(bDir, t); top.y = 46;
+    for (let k=-4;k<=4;k++){
+      if (k===0) continue;
+      const anchor = bStart.clone().addScaledVector(bDir, t + k*0.045); anchor.y = 10.4;
+      pts.push(top.x, top.y, top.z, anchor.x, anchor.y, anchor.z);
+    }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color:0x4a4e66, transparent:true, opacity:0.8 })));
+}
+// head / tail lights
+const carLights = [];
+const carGeo = new THREE.SphereGeometry(0.42, 6, 5);
+for (let i=0;i<26;i++){
+  const isWhite = i < 13;
+  const m = new THREE.Mesh(carGeo, new THREE.MeshBasicMaterial({ color: isWhite ? new THREE.Color(2.2,2.2,1.9) : new THREE.Color(2.6,0.25,0.2) }));
+  m.userData = { off: (i*0.618034) % 1, dir: isWhite ? 1 : -1, lane: isWhite ? 1.9 : -1.9 };
+  scene.add(m); carLights.push(m);
+}
+const bPerp = new THREE.Vector3(-bDir.z, 0, bDir.x).normalize();
+
+// ============================================================
+//  MARINA — MOORED BOATS
+// ============================================================
+const boats = [];
+function addBoat(x, z, s, hue){
+  const g = new THREE.Group();
+  const hull = new THREE.Mesh(new THREE.CylinderGeometry(1.15*s, 0.75*s, 5.2*s, 7, 1), new THREE.MeshStandardMaterial({ color:hue, roughness:0.5, metalness:0.3 }));
+  hull.rotation.z = Math.PI/2; hull.scale.set(1, 1, 0.55); hull.position.y = 0.55*s; hull.castShadow = true; g.add(hull);
+  const bow = new THREE.Mesh(new THREE.ConeGeometry(0.62*s, 1.5*s, 7), hull.material);
+  bow.rotation.z = -Math.PI/2; bow.scale.set(1, 1, 0.55); bow.position.set(3.2*s, 0.55*s, 0); g.add(bow);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6*s, 0.75*s, 1.25*s), new THREE.MeshStandardMaterial({ color:0xe8e4da, roughness:0.6, emissive:0xffd9a0, emissiveIntensity:0.9 }));
+  cabin.position.set(-0.6*s, 1.25*s, 0); g.add(cabin);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06*s, 0.06*s, 4.6*s, 6), trunkMat);
+  mast.position.set(0.6*s, 3.2*s, 0); g.add(mast);
+  g.position.set(x, 0, z); g.rotation.y = rng()*0.9 - 0.45;
+  scene.add(g); boats.push({ g, ph: rng()*6.28, s });
+}
+addBoat(-178, 34, 1.0, 0x274060); addBoat(-152, 52, 0.8, 0x3a2a50); addBoat(-126, 26, 1.15, 0x1f3a4a);
+addBoat(-98, 58, 0.9, 0x402030); addBoat(-205, 62, 0.75, 0x223a2f); addBoat(88, 40, 0.9, 0x2c3454);
+
+// ============================================================
+//  LIGHTING
+// ============================================================
+scene.add(new THREE.AmbientLight(0x2a2a4a, 1.35));
+const hemi = new THREE.HemisphereLight(0x3a3560, 0x05060a, 0.7); scene.add(hemi);
+const moonLight = new THREE.DirectionalLight(0xcdd6ff, 1.5);
+moonLight.position.set(-260, 320, 190);
+moonLight.castShadow = true;
+moonLight.shadow.mapSize.set(4096, 4096);
+moonLight.shadow.camera.left = -320; moonLight.shadow.camera.right = 320;
+moonLight.shadow.camera.top = 320; moonLight.shadow.camera.bottom = -180;
+moonLight.shadow.camera.far = 1100; moonLight.shadow.bias = -0.0004; moonLight.shadow.radius = 6;
+scene.add(moonLight);
+const canopyLight = new THREE.PointLight(0xffd9a0, 60, 55, 1.8); canopyLight.position.set(0, 6.5, towerZ + 30); scene.add(canopyLight);
+const logoWash = new THREE.PointLight(0xff2d9a, 30, 120, 2.0); logoWash.position.set(0, 40, towerZ + 42); scene.add(logoWash);
+
+// ============================================================
+//  POST — BLOOM (light touch so the script stays crisp)
+// ============================================================
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.42, 0.55, 0.78);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ============================================================
+//  LOGO LIGHT STATE MACHINE
+// ============================================================
+let pen = 0;                     // 0..1 writing progress
+let phase = 'drawing';           // 'drawing' | 'complete' | 'animating'
+let animIndex = 0;               // 0 wave · 1 sparkle · 2 sunrise
+const ANIM_NAMES = ['wave', 'sparkle', 'sunrise'];
+let completeAt = 0;
+let simTime = 0;
+let drawSpeedIndex = 2;          // 1x
+const SPEEDS = [0.25, 0.5, 1, 2, 4];
+const DRAW_SECONDS = 45;
+// blog embed: open on the finished logo in its sparkle animation (?draw=1 to watch the pen write it instead)
+if (!new URLSearchParams(location.search).get('draw')){ pen = 1; phase = 'animating'; animIndex = 1; }
+const drawSpeed = () => SPEEDS[drawSpeedIndex];
+let litPixels = 0;
+
+const tmpColor = new THREE.Color();
+const fillHsl = { h:0, s:0, l:0 };
+
+function strokePixelColor(k, out){
+  // returns false when the pixel is still dark
+  const o = PX.order[k];
+  if (o > pen) return false;
+  const t = PX.type[k];
+  const edge = clamp01((pen - o) / 0.028);          // 1 once the pen has passed, 0 at the very edge
+  const boost = 0.75 + 1.15 * (1 - edge);           // hot leading edge, settles to 1
+  if (phase === 'drawing' || phase === 'complete'){
+    out.setRGB(PX.col[k*3], PX.col[k*3+1], PX.col[k*3+2]);
+    if (t !== 3) out.multiplyScalar(Math.min(boost, 1.9));
+    return true;
+  }
+  // ------- post-completion animations -------
+  const px = PX.pos[k*3], py = PX.pos[k*3+1];
+  if (animIndex === 0){                              // slow colour wave
+    if (t === 1){
+      const hue = (px*0.0042 + simTime*0.085 + py*0.0012) % 1;
+      out.setHSL((hue+1)%1, 0.52, 0.66).multiplyScalar(0.72);
+    } else if (t === 2){
+      const hue = (px*0.0042 + simTime*0.085 + 0.5) % 1;
+      out.setHSL((hue+1)%1, 0.85, 0.6).multiplyScalar(0.72);
+    } else out.copy(PAL.shadow).multiplyScalar(0.8 + 0.4*Math.sin(simTime*0.8 + px*0.01));
+  } else if (animIndex === 1){                       // sparkle pass
+    if (t === 1){
+      const h = Math.sin(k*127.1 + Math.floor(simTime*2.2)*311.7) * 43758.5453;
+      const tw = h - Math.floor(h);
+      if (tw > 0.925) out.setRGB(1.6, 1.6, 1.85);    // glitter blooms
+      else out.copy(PAL.fill);
+    } else if (t === 2){
+      const h = Math.sin(k*269.3 + Math.floor(simTime*2.2)*183.1) * 28001.8384;
+      out.copy(PAL.outline).multiplyScalar((h - Math.floor(h)) > 0.93 ? 1.9 : 1.0);
+    } else out.copy(PAL.shadow);
+  } else {                                           // sunrise gradient sweep
+    const sweep = (Math.sin(simTime*0.42) * 0.5 + 0.5) * 26;
+    const tgrad = clamp01((py + sweep*0.35) / 62);
+    if (t === 1){
+      out.setHSL(lerp(0.055, 0.90, tgrad), 0.78, lerp(0.60, 0.68, tgrad)).multiplyScalar(0.74);
+    } else if (t === 2){
+      out.setHSL(lerp(0.99, 0.78, tgrad), 0.9, 0.62).multiplyScalar(0.74);
+    } else out.copy(PAL.shadow);
+  }
+  return true;
+}
+function refreshLogoPixels(){
+  let lit = ordinaryLit;
+  for (let i=0;i<strokeIdx.length;i++){
+    const k = strokeIdx[i];
+    if (strokePixelColor(k, tmpColor)){ bays.setColorAt(k, tmpColor); lit++; }
+    else { tmpColor.copy(PAL.off).multiplyScalar(0.8); bays.setColorAt(k, tmpColor); }
+  }
+  bays.instanceColor.needsUpdate = true;
+  litPixels = lit;
+}
+
+// ============================================================
+//  WORLD ANIMATION (all deterministic from simTime)
+// ============================================================
+const trainGroup = train;
+function updateWorld(t){
+  // people-mover gliding between towers
+  const tx = Math.sin(t*0.21) * 178;
+  train.position.x = tx;
+  // boats bobbing at their moorings
+  for (const b of boats){
+    b.g.position.y = Math.sin(t*0.75 + b.ph) * 0.16;
+    b.g.rotation.z = Math.sin(t*0.62 + b.ph*1.7) * 0.035;
+    b.g.rotation.x = Math.cos(t*0.5 + b.ph) * 0.02;
+  }
+  // aviation beacons
+  for (const b of beacons) b.mat.emissiveIntensity = (Math.sin(t*2.4 + b.ph) > 0.25) ? 2.6 : 0.12;
+  // bridge traffic
+  for (const m of carLights){
+    const u = (t*0.052 + m.userData.off) % 1;
+    const uu = m.userData.dir === 1 ? u : 1 - u;
+    m.position.copy(bStart).lerp(bEnd, uu).addScaledVector(bPerp, m.userData.lane);
+    m.position.y = 10.6;
+  }
+  // water shimmer drift
+  waterTint.material.map.offset.set(t*0.006, t*0.0035);
+}
+function updateBench(){
+  window.__bench.pixels = TOTAL_PIXELS;
+  window.__bench.lit = litPixels;
+  window.__bench.progress = pen;
+  window.__bench.phase = phase;
+  document.getElementById('bp').textContent = phase;
+  document.getElementById('bpr').textContent = Math.round(pen*100) + '%';
+  document.getElementById('bl').textContent = litPixels;
+  document.getElementById('bt').textContent = TOTAL_PIXELS;
+}
+window.__bench = { pixels: TOTAL_PIXELS, lit: 0, progress: 0, phase: 'drawing' };
+
+// ============================================================
+//  SHOWCASE — 12 s scripted cinematic, fully deterministic
+// ============================================================
+const SHOW_DUR = 12;
+const showPos = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(168, 24, 232),
+  new THREE.Vector3(102, 19, 158),
+  new THREE.Vector3(38, 34, 74),
+  new THREE.Vector3(-6, 46, 6),
+  new THREE.Vector3(30, 66, 34),
+  new THREE.Vector3(146, 88, 186),
+]);
+const showTgt = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(0, 50, -120),
+  new THREE.Vector3(0, 48, -122),
+  new THREE.Vector3(0, 42, -116),
+  new THREE.Vector3(0, 33, -104),
+  new THREE.Vector3(0, 40, -112),
+  new THREE.Vector3(0, 46, -122),
+]);
+const showcase = {
+  duration: SHOW_DUR,
+  seek(t){
+    t = Math.max(0, Math.min(SHOW_DUR, t));
+    simTime = t + 28;                                        // train/traffic/boats at a lively moment
+    pen = clamp01((t - 1.1) / 6.4);                          // pen writes during the push-in
+    phase = pen < 1 ? 'drawing' : (t < 9.0 ? 'complete' : 'animating');
+    animIndex = 0;
+    const u = smooth(t / SHOW_DUR);
+    camera.position.copy(showPos.getPoint(u));
+    camera.lookAt(showTgt.getPoint(u));
+    updateWorld(simTime);
+    refreshLogoPixels();
+    composer.render();
+    updateBench();
+  }
+};
+window.showcase = showcase;
+
+// ============================================================
+//  RECORD BUTTON — plays the showcase, saves .webm
+// ============================================================
+const recBtn = document.getElementById('recBtn');
+let recording = false, showcaseActive = false;
+recBtn.addEventListener('click', () => {
+  if (recording) return;
+  recording = true; recBtn.disabled = true; recBtn.textContent = '●  Recording…';
+  const stream = renderer.domElement.captureStream(60);
+  const mime = ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+  const rec = new MediaRecorder(stream, mime ? { mimeType:mime, videoBitsPerSecond: 14000000 } : undefined);
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    const blob = new Blob(chunks, { type:'video/webm' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'vice-city-showcase.webm';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    recording = false; showcaseActive = false; recBtn.disabled = false;
+    recBtn.innerHTML = '⏺ &nbsp;Record Video';
+    cameraMode = 1; controls.enabled = true;
+    camera.position.set(118, 26, 168); controls.target.set(0, 52, -118);
+  };
+  rec.start(200);
+  showcaseActive = true; controls.enabled = false;
+  const t0 = performance.now();
+  const drive = () => {
+    const el = (performance.now() - t0) / 1000;
+    if (el >= SHOW_DUR + 0.12){
+      showcase.seek(SHOW_DUR);
+      rec.stop();
+      return;
+    }
+    showcase.seek(Math.min(el, SHOW_DUR));
+    requestAnimationFrame(drive);
+  };
+  drive();
+});
+
+// ============================================================
+//  INPUT — keys & cameras
+// ============================================================
+let cameraMode = 1; // 1 bay-side · 2 helicopter orbit
+window.addEventListener('keydown', e => {
+  const k = e.key;
+  if (k === '+' || k === '='){ drawSpeedIndex = Math.min(SPEEDS.length-1, drawSpeedIndex+1); }
+  else if (k === '-' || k === '_'){ drawSpeedIndex = Math.max(0, drawSpeedIndex-1); }
+  else if (k === 'n' || k === 'N'){ if (phase === 'animating' || phase === 'complete'){ animIndex = (animIndex+1) % ANIM_NAMES.length; phase = 'animating'; } }
+  else if (k === '1'){ cameraMode = 1; controls.enabled = EMBED_MOVE; camera.position.set(118, 26, 168); controls.target.set(0, 52, -118); }
+  else if (k === '2'){ cameraMode = 2; controls.enabled = false; }
+  else if (k === 'r' || k === 'R'){ pen = 0; phase = 'drawing'; animIndex = 0; }
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+//  MAIN LOOP
+// ============================================================
+const clock = new THREE.Clock();
+function tick(){
+  requestAnimationFrame(tick);
+  if (showcaseActive) return;             // showcase drives its own frames
+  if (!embedVisible){ clock.getDelta(); return; }   // blog embed: pause off screen
+  const dt = Math.min(clock.getDelta(), 0.05);
+  simTime += dt;
+  if (phase === 'drawing'){
+    pen += (dt * drawSpeed()) / DRAW_SECONDS;
+    if (pen >= 1){ pen = 1; phase = 'complete'; completeAt = simTime; }
+  } else if (phase === 'complete' && simTime - completeAt > 2.4){
+    phase = 'animating';
+  }
+  updateWorld(simTime);
+  refreshLogoPixels();
+  if (cameraMode === 2){
+    const a = simTime * 0.13 + 2.1;
+    const r = 238, h = 96 + Math.sin(simTime*0.21)*14;
+    camera.position.set(Math.sin(a)*r, h, -120 + Math.cos(a)*r);
+    camera.lookAt(0, 46, -122);
+  } else {
+    controls.update();
+  }
+  composer.render();
+  updateBench();
+}
+tick();
+</script>
+</body>
+</html>
+

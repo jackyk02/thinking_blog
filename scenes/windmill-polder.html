@@ -796,7 +796,7 @@ const cyclist = new THREE.Group();
   cyclist.add(cyclist.userData.legL, cyclist.userData.legR);
   cyclist.scale.setScalar(1.06);
   cyclist.traverse(o=>{ if(o.isMesh){ o.castShadow = true; } });
-  scene.add(cyclist);
+  scene.add(cyclist); cyclist.visible = false;   // teaser: no cyclist
 }
 
 // =====================================================================
@@ -993,10 +993,10 @@ function syncFromState(){
 
   // barge drift (ping-pong along canal)
   {
-    // teaser: always sailing forward (+x, toward the camera side) at 2.5 units/s; it starts between De Lelie (x = -64)
-    // and De Valk (x = -32), the 1st and 2nd mills in the view, and after leaving the view it re-enters far up the canal
+    // teaser: always sailing forward (+x, toward the camera side) at 2.5 units/s; it starts at De Valk (x = -32), the 2nd
+    // mill in the view, and after leaving the view it re-enters far up the canal
     const fwd = true;
-    const x = -150 + ((simTime*2.5 + 102) % 300);
+    const x = -150 + ((simTime*2.5 + 128) % 300);   // starts in front of De Valk on screen (the canal is nearer the camera than the mills)
     barge.position.set(x, 0.05 + Math.sin(simTime*0.9)*0.05 + Math.sin(simTime*1.7+1)*0.02, 0);
     barge.rotation.y = fwd ? 0 : Math.PI;
     barge.rotation.z = Math.sin(simTime*0.7 + 1.1)*0.022;
